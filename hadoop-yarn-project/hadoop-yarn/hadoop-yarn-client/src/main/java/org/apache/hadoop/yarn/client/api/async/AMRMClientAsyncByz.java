@@ -41,6 +41,8 @@ import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncByzImpl;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
+import org.apache.hadoop.yarn.client.api.async.Byzantine;
+
 import com.google.common.annotations.VisibleForTesting;
 /**
  * <code>AMRMClientAsyncByz</code> handles communication with the ResourceManager
@@ -91,7 +93,7 @@ import com.google.common.annotations.VisibleForTesting;
 @Public
 @Stable
 public abstract class AMRMClientAsyncByz<T extends ContainerRequest> 
-extends AbstractService {
+extends Byzantine{
   
   protected final AMRMClient<T> client;
   protected final CallbackHandler handler;
@@ -116,7 +118,7 @@ extends AbstractService {
   @VisibleForTesting
   protected AMRMClientAsyncByz(AMRMClient<T> client, int intervalMs,
       CallbackHandler callbackHandler) {
-    super(AMRMClientAsyncByz.class.getName());
+    //super(AMRMClientAsyncByz.class.getName());
     this.client = client;
     this.heartbeatIntervalMs.set(intervalMs);
     this.handler = callbackHandler;
@@ -166,6 +168,7 @@ extends AbstractService {
    * even after the remove request
    * @param req Resource request
    */
+
   public abstract void removeContainerRequest(T req);
 
   /**

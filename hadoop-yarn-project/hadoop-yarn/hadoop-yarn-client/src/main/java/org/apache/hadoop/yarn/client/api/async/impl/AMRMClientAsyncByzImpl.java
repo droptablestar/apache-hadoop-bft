@@ -46,12 +46,14 @@ import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
+import org.apache.hadoop.yarn.client.api.async.Byzantine;
+
 import com.google.common.annotations.VisibleForTesting;
 
 @Private
 @Unstable
 public class AMRMClientAsyncByzImpl<T extends ContainerRequest> 
-extends AMRMClientAsyncByz<T> {
+extends AMRMClientAsyncByz<T>{
   
   private static final Log LOG = LogFactory.getLog(AMRMClientAsyncByzImpl.class);
   
@@ -167,23 +169,17 @@ extends AMRMClientAsyncByz<T> {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
+
   public void addContainerRequest(T req) {
 
-    //TODO
+    //The assumption is here we will check the Byzantine class
+    //to see if we are in byz mode. If we are we call the 
+    //parent class method, otherwise we just go on as normal
 
-   //For byzantine fault tolerance we need to duplicate
-   //every resource request. 
-   //
-   //Somehow we need to track the requests and link them 
-   //to their allocation callbacks
+    //super.addContainerRequest(req);
 
-   //ContainerRequest tmp = req;
-
-    for(int i=0; i< NUM_BYZ_REPLICAS; i++){
-        client.addContainerRequest(req);
-        num_replicas++;
-    }
-  }
+    client.addContainerRequest(req);
+ }
 
   /**
    * Remove previous container request. The previous container request may have 
@@ -324,17 +320,7 @@ extends AMRMClientAsyncByz<T> {
 
           List<Container> allocated = response.getAllocatedContainers();
           if (!allocated.isEmpty()) {
-            
-             
-              //only report back the initial container allocation...we hide the
-              //replicas to ourselves 
-              if( (num_replicas % NUM_BYZ_REPLICAS) == 0){
-                  handler.onContainersAllocated(allocated);
-              }
-              else{
-                    LOG.info("Container Replica Allocated...");
-
-              }
+              handler.onContainersAllocated(allocated);
           }
 
           progress = handler.getProgress();
