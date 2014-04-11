@@ -162,6 +162,7 @@ extends AMRMClientAsync<T> {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
+  @Override
   public void addContainerRequest(T req) {
     client.addContainerRequest(req);
   }
@@ -173,6 +174,7 @@ extends AMRMClientAsync<T> {
    * even after the remove request
    * @param req Resource request
    */
+  @Override
   public void removeContainerRequest(T req) {
     client.removeContainerRequest(req);
   }
