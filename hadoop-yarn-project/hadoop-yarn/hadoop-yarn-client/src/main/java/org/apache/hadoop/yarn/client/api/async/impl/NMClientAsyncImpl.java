@@ -214,6 +214,8 @@ public class NMClientAsyncImpl extends NMClientAsync {
 
   public void startContainerAsync(
       Container container, ContainerLaunchContext containerLaunchContext) {
+
+    super.startContainerAsync(container,containerLaunchContext);
     if (containers.putIfAbsent(container.getId(),
         new StatefulContainer(this, container.getId())) != null) {
       callbackHandler.onStartContainerError(container.getId(),

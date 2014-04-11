@@ -45,9 +45,9 @@ import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
-import org.apache.hadoop.yarn.client.api.async.impl.ByzantineImpl;
-
 import com.google.common.annotations.VisibleForTesting;
+
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 
 /**
  * <code>AMRMClientAsync</code> handles communication with the ResourceManager
@@ -126,4 +126,10 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
     public void addContainerRequest(T req){
         LOG.info("Byz Add Container Request");
     }
+
+    public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext){
+        LOG.info("Byz Start Container Async");
+    }
+
+
 }
