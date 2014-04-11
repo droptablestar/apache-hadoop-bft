@@ -136,15 +136,17 @@ public abstract class NMClientAsync extends Byzantine {
     this.setCallbackHandler(callbackHandler);
   }
 
-  //public abstract void startContainerAsync(
-  //    Container container, ContainerLaunchContext containerLaunchContext);
+
+  public abstract void startContainerAsync(
+      Container container, ContainerLaunchContext containerLaunchContext);
 
   public abstract void stopContainerAsync(
       ContainerId containerId, NodeId nodeId);
 
   public abstract void getContainerStatusAsync(
       ContainerId containerId, NodeId nodeId);
-  
+ 
+
   public NMClient getClient() {
     return client;
   }

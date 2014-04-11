@@ -157,7 +157,7 @@ extends Byzantine<T> {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
-  //public abstract void addContainerRequest(T req);
+  public abstract void addContainerRequest(T req);
 
   /**
    * Remove previous container request. The previous container request may have 

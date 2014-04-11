@@ -162,10 +162,9 @@ extends AMRMClientAsync<T> {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
-  @Override
   public void addContainerRequest(T req) {
 
-    super.addContainerRequest(req);
+    super.addContainerRequestByz(req);
     client.addContainerRequest(req);
   }
 
@@ -297,17 +296,20 @@ extends AMRMClientAsync<T> {
           }
           List<NodeReport> updatedNodes = response.getUpdatedNodes();
           if (!updatedNodes.isEmpty()) {
+            AMRMClientAsyncImpl.super.onNodesUpdatedByz(updatedNodes);
             handler.onNodesUpdated(updatedNodes);
           }
 
           List<ContainerStatus> completed =
               response.getCompletedContainersStatuses();
           if (!completed.isEmpty()) {
+            AMRMClientAsyncImpl.super.onContainersCompletedByz(completed);
             handler.onContainersCompleted(completed);
           }
 
           List<Container> allocated = response.getAllocatedContainers();
           if (!allocated.isEmpty()) {
+            AMRMClientAsyncImpl.super.onContainersAllocatedByz(allocated);
             handler.onContainersAllocated(allocated);
           }
 
