@@ -23,6 +23,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
@@ -91,29 +95,35 @@ import com.google.common.annotations.VisibleForTesting;
 @Public
 @Stable
 
-public abstract class Byzantine<T> extends AbstractService {
+public class Byzantine<T extends ContainerRequest> extends AbstractService {
 
    
     //Had to make this class extend AbstractService because Java does not
     //allow multiple inheritance. Now AMRMClientAsyncByz can extend Byzantine instead
     //of AbstractService
     
-    
     //create some variables for tracking created containers    
     public static Boolean byzantine_mode = true;
+    
+    private static final Log LOG = LogFactory.getLog(Byzantine.class);
 
+ 
     @Private
     @VisibleForTesting
-    protected Byzantine() {
-      super(Byzantine.class.getName());
+    public Byzantine(String name) {
+      super(name);
     }
-  
-    public abstract void set_byzantine_mode(Boolean value);
+
+    public void set_byzantine_mode(Boolean value){
+        this.byzantine_mode = value;
+    }
+
 
     /**
     * Request containers for resources before calling <code>allocate</code>
     * @param req Resource request
     */
-    public abstract void addContainerRequest(T req);
-
-   }
+    public void addContainerRequest(T req){
+        LOG.info("Byz Add Container Request");
+    }
+}

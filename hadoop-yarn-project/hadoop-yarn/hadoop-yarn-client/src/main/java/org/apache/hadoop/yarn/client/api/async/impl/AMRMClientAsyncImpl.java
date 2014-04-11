@@ -164,6 +164,8 @@ extends AMRMClientAsync<T> {
    */
   @Override
   public void addContainerRequest(T req) {
+
+    super.addContainerRequest(req);
     client.addContainerRequest(req);
   }
 
@@ -174,7 +176,6 @@ extends AMRMClientAsync<T> {
    * even after the remove request
    * @param req Resource request
    */
-  @Override
   public void removeContainerRequest(T req) {
     client.removeContainerRequest(req);
   }

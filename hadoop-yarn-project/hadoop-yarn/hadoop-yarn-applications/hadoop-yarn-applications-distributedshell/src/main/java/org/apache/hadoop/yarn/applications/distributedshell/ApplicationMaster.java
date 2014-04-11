@@ -86,7 +86,7 @@ import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
-import org.apache.hadoop.yarn.client.api.async.AMRMClientAsyncByz;
+import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -183,7 +183,7 @@ public class ApplicationMaster {
 
   // Handle to communicate with the Resource Manager
   @SuppressWarnings("rawtypes")
-  private AMRMClientAsyncByz amRMClient;
+  private AMRMClientAsync amRMClient;
 
   // Handle to communicate with the Node Manager
   private NMClientAsync nmClientAsync;
@@ -533,8 +533,8 @@ public class ApplicationMaster {
     }
     allTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 
-    AMRMClientAsyncByz.CallbackHandler allocListener = new RMCallbackHandler();
-    amRMClient = AMRMClientAsyncByz.createAMRMClientAsync(1000, allocListener);
+    AMRMClientAsync.CallbackHandler allocListener = new RMCallbackHandler();
+    amRMClient = AMRMClientAsync.createAMRMClientAsync(1000, allocListener);
     amRMClient.init(conf);
     amRMClient.start();
 
@@ -668,7 +668,7 @@ public class ApplicationMaster {
     return success;
   }
   
-  private class RMCallbackHandler implements AMRMClientAsyncByz.CallbackHandler {
+  private class RMCallbackHandler implements AMRMClientAsync.CallbackHandler {
     @SuppressWarnings("unchecked")
     @Override
     public void onContainersCompleted(List<ContainerStatus> completedContainers) {

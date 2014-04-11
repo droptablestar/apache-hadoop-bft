@@ -43,6 +43,8 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.apache.hadoop.yarn.client.api.async.Byzantine;
+
 /**
  * <code>AMRMClientAsync</code> handles communication with the ResourceManager
  * and provides asynchronous updates on events such as container allocations and
@@ -89,7 +91,7 @@ import com.google.common.annotations.VisibleForTesting;
 @Public
 @Stable
 public abstract class AMRMClientAsync<T extends ContainerRequest> 
-extends AbstractService {
+extends Byzantine<T> {
   
   protected final AMRMClient<T> client;
   protected final CallbackHandler handler;
@@ -155,7 +157,7 @@ extends AbstractService {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
-  public abstract void addContainerRequest(T req);
+  //public abstract void addContainerRequest(T req);
 
   /**
    * Remove previous container request. The previous container request may have 
