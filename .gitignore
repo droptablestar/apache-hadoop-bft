@@ -10,3 +10,6 @@ target
 hadoop-hdfs-project/hadoop-hdfs/downloads
 hadoop-hdfs-project/hadoop-hdfs-httpfs/downloads
 hadoop-common-project/hadoop-common/build
+hadoop-common-project/hadoop-common/src/main/conf/core-site.xml
+hadoop-hdfs-project/hadoop-hdfs/src/main/conf/hdfs-site.xml
+hadoop-tools/hadoop-sls/src/main/sample-conf/yarn-site.xml
