@@ -21,11 +21,18 @@ package org.apache.hadoop.yarn.client.api.async;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentHashMap;
+
+import java.lang.Boolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -104,10 +111,15 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
     
     //create some variables for tracking created containers    
     public static Boolean byzantine_mode = true;
+    public int NUM_REPLICAS = 4;
     
     private static final Log LOG = LogFactory.getLog(Byzantine.class);
 
- 
+    public static ConcurrentMap<ContainerRequest, ArrayList<Container>> allocationTable =
+        new ConcurrentHashMap<ContainerRequest, ArrayList<Container>>();
+
+    public List<ArrayList<Boolean>> finishedContainers = new ArrayList<ArrayList<Boolean>>();
+    
     @Private
     @VisibleForTesting
     public Byzantine(String name) {
@@ -128,8 +140,59 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
     }
 
     public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext){
-        LOG.info("Byz Start Container Async");
+        LOG.info("Byz Start Container Async::::::TEST");
     }
 
 
+    public boolean resourceLessThanEqual(Object obj0, Object obj1) {
+    if (obj0 == null || obj1 == null)
+      return false;
+    if (!(obj0 instanceof Resource) && !(obj1 instanceof Resource))
+        return false;
+    Resource r0 = (Resource) obj0;
+    Resource r1 = (Resource) obj1;
+    // System.out.println("mem: "+r0.getMemory()+ " other: "+r1.getMemory()
+    //                    +" vcore: "+r0.getVirtualCores()
+    //                    +" other: "+r1.getVirtualCores());
+    if (r0.getMemory() > r1.getMemory() ||
+        r0.getVirtualCores() > r1.getVirtualCores()) {
+      return false;
+    }
+    return true;
+  }
+    public int findKeyIndex(ContainerRequest key) {
+        int i=0;
+        for (ContainerRequest req : allocationTable.keySet()) {
+            if (key.equals(req))
+                return i;
+            i++;
+        }
+        System.out.println("KEY INDEX: RETURNING -1");
+        return -1;
+    }
+
+    public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
+        int i=0;
+        for (Container con : dups) {
+            if (con.getId().getId() == cid.getId())
+                return i;
+            i++;
+        }
+        System.out.println("CONTAINER INDEX: RETURNING -1");
+        return -1;
+    }
+
+    public ContainerRequest findContainerList(ContainerId cid) {
+        for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+                 allocationTable.entrySet()) {
+            ContainerRequest key = e.getKey();
+            ArrayList<Container> dups = e.getValue();
+            for (Container con : dups) {
+                if (con.getId().getId() == cid.getId())
+                    return key;
+            }
+        }
+        System.out.println("RETURNING NULL");
+        return null;
+    }
 }

@@ -187,6 +187,10 @@ public abstract class AMRMClient<T extends AMRMClient.ContainerRequest> extends
       sb.append("Priority[").append(priority).append("]");
       return sb.toString();
     }
+
+      public String toKey() {
+          return capability.toString();
+      }
   }
  
   /**

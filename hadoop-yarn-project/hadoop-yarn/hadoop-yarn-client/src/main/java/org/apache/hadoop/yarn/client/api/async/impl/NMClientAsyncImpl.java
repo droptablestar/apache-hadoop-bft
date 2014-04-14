@@ -24,6 +24,9 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -216,18 +219,38 @@ public class NMClientAsyncImpl extends NMClientAsync {
       Container container, ContainerLaunchContext containerLaunchContext) {
 
     super.startContainerAsync(container,containerLaunchContext);
+    // System.out.println("START!!!! " + allocationTable.values().size());
+    // Object key = findContainerList(container.getId());
+    // if (key == null) {LOG.info("SHIT WENT WRONG....START ASYNC");}
+    // for (Container c : allocationTable.get(key)) {
+    //     // System.out.println("STARTING CONTAINER: " + c.getId());
+    //     if (containers.putIfAbsent(c.getId(),
+    //                                new StatefulContainer(this, c.getId())) != null) {
+    //         callbackHandler.onStartContainerError(c.getId(),
+    //                                               RPCUtil.getRemoteException("Container " + c.getId() +
+    //                                                                          " is already started or scheduled to start"));
+    //     }
+    //     try {
+    //         events.put(new StartContainerEvent(c, containerLaunchContext));
+    //     } catch (InterruptedException e) {
+    //         LOG.warn("Exception when scheduling the event of starting Container " +
+    //                  c.getId());
+    //         callbackHandler.onStartContainerError(c.getId(), e);
+    //     }
+    // }
+    
     if (containers.putIfAbsent(container.getId(),
-        new StatefulContainer(this, container.getId())) != null) {
-      callbackHandler.onStartContainerError(container.getId(),
-          RPCUtil.getRemoteException("Container " + container.getId() +
-              " is already started or scheduled to start"));
+                               new StatefulContainer(this, container.getId())) != null) {
+        callbackHandler.onStartContainerError(container.getId(),
+                                              RPCUtil.getRemoteException("Container " + container.getId() +
+                                                                         " is already started or scheduled to start"));
     }
     try {
-      events.put(new StartContainerEvent(container, containerLaunchContext));
+        events.put(new StartContainerEvent(container, containerLaunchContext));
     } catch (InterruptedException e) {
-      LOG.warn("Exception when scheduling the event of starting Container " +
-          container.getId());
-      callbackHandler.onStartContainerError(container.getId(), e);
+        LOG.warn("Exception when scheduling the event of starting Container " +
+                 container.getId());
+        callbackHandler.onStartContainerError(container.getId(), e);
     }
   }
 
@@ -400,8 +423,8 @@ public class NMClientAsyncImpl extends NMClientAsync {
       private ContainerState onExceptionRaised(StatefulContainer container,
           ContainerEvent event, Throwable t) {
         try {
-          container.nmClientAsync.getCallbackHandler().onStartContainerError(
-              event.getContainerId(), t);
+            container.nmClientAsync.getCallbackHandler().onStartContainerError(
+                event.getContainerId(), t);
         } catch (Throwable thr) {
           // Don't process user created unchecked exception
           LOG.info(

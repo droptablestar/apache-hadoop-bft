@@ -686,8 +686,6 @@ public class Client {
           + ", yarnAppState=" + report.getYarnApplicationState().toString()
           + ", distributedFinalState=" + report.getFinalApplicationStatus().toString()
           + ", appTrackingUrl=" + report.getTrackingUrl()
-          + ", **********HELLLLLLOOOOOOOOO**********"
-          + ", ******GOOOOOOODDDDDBBBYYYYEEEE*******"
           + ", appUser=" + report.getUser());
 
       YarnApplicationState state = report.getYarnApplicationState();
