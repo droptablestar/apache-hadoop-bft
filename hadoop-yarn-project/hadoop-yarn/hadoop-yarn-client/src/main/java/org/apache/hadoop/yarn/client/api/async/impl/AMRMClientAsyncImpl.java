@@ -167,18 +167,14 @@ extends AMRMClientAsync<T> {
    * @param req Resource request
    */
   public void addContainerRequest(T req) {
-    super.addContainerRequestByz(req);
-
-    // check to see if this capability has been requested yet.
-    if (!allocationTable.containsKey(req)) {
-        allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
-        finishedContainers.add(new ArrayList<Boolean>(1));
-    }
-
-    for (int i=0; i<NUM_REPLICAS; i++)
-        client.addContainerRequest(req);
-
-    client.addContainerRequest(req);
+      if (inByzantineMode()) {
+          addContainerRequestByz(req);
+          
+          for (int i=0; i<NUM_REPLICAS; i++)
+              client.addContainerRequest(req);
+      }
+      else
+          client.addContainerRequest(req);
   }
 
   /**
@@ -246,7 +242,6 @@ extends AMRMClientAsync<T> {
           }
         }
         if (response != null) {
-            LOG.info("************RESPONSE: " + response.toString() + "**************");
           while (true) {
             try {
               responseQueue.put(response);
@@ -275,7 +270,6 @@ extends AMRMClientAsync<T> {
       super("AMRM Callback Handler Thread");
     }
     public void run() {
-        LOG.info("****CALLBACK RUNNING***");
       while (true) {
         if (!keepRunning) {
           return;
@@ -317,75 +311,29 @@ extends AMRMClientAsync<T> {
           List<ContainerStatus> completed =
               response.getCompletedContainersStatuses();
           if (!completed.isEmpty()) {
-              List<ContainerStatus> finalCompleted =
-                  new ArrayList<ContainerStatus>();
-              for (ContainerStatus c : completed) {
-                  // System.out.println("LOOKING FOR: "+c.getContainerId());
-                  Object key = findContainerList(c.getContainerId());
-                  if (key == null) {LOG.info("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
-                  ArrayList<Container> dups = allocationTable.get(key);
-                  // System.out.println("STATUS: ID: "+c.getContainerId()
-                  //                    +" STATE: "+c.getState()
-                  //                    +" DIAG: "+c.getDiagnostics()
-                  //                    +" EXIT: "+c.getExitStatus());
+              // if we're in byzantine mode call our completed method
+              if (inByzantineMode()){
+                  List<ContainerStatus> finalCompleted =
+                      onContainersCompletedByz(completed);
 
-                  int arrayIndex = findKeyIndex((ContainerRequest)key);
-                  int containerIndex = findContainerIndex(dups, c.getContainerId());
-                  finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-                  // for (ArrayList<Boolean> f : finishedContainers) {
-                  //     for (Boolean b : f)
-                  //         System.out.print(b+" ");
-                  //     System.out.println();
-                  // }
-                  if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                      ContainerStatus status = ContainerStatus.newInstance(
-                          dups.get(dups.size()-1).getId(),c.getState(),
-                          c.getDiagnostics(), c.getExitStatus());
-                      finalCompleted.add(status);
-                  }
-                      // handler.onContainersCompleted(
-                      //     dups.subList(dups.size()-1,dups.size()));
+                  if (!finalCompleted.isEmpty())
+                      handler.onContainersCompleted(finalCompleted);
               }
-              // System.out.println("CONTAINERS COMPLETED: " + finalCompleted.size());
-              // for (ContainerStatus s : finalCompleted) System.out.print(s.getContainerId()+" ");
-              // System.out.println();
-              if (!finalCompleted.isEmpty())
-                  handler.onContainersCompleted(finalCompleted);
-              // handler.onContainersCompleted(completed);
+              else handler.onContainersCompleted(completed);
           }
 
           List<Container> allocated = response.getAllocatedContainers();
           if (!allocated.isEmpty()) {
-              // System.out.println("****CONTAINERS ALLOCATED****" + allocated.size());
-              // loop through every container and add it to the allocationTable
-              for (Container c : allocated) {
-                  int i = 0;
-                  for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
-                           allocationTable.entrySet()) {
-                      ContainerRequest key = e.getKey();
-                      // System.out.println("KEY: " + key.toKey() + " C: "
-                      //                    + c.getResource().toString());
-                      if (resourceLessThanEqual(key.getCapability(), c.getResource())) {
-                          ArrayList<Container> dups = e.getValue();
-                          // System.out.println("DUPS: "+dups.size());
-                          if (dups.size() < NUM_REPLICAS) {
-                              // System.out.println("ADDING " + c.toString());
-                              dups.add(c);
-                              finishedContainers.get(i).add(Boolean.FALSE);
-                              if (dups.size() == NUM_REPLICAS) {
-                                  // System.out.println("CALLBACK");
-                                  // handler.onContainersAllocated(
-                                  //     dups.subList(dups.size()-1,dups.size()));
-                                  handler.onContainersAllocated(
-                                      dups.subList(0,dups.size()));
-                              }
-                              break;
-                          }
-                      }
-                      i++;
-                  }
+              // if we're in byzantine mode call our allocation method
+              if (inByzantineMode()) {
+                  List<ArrayList<Container>> toStart =
+                      onContainersAllocatedByz(allocated);
+
+                  for (List<Container> li : toStart)
+                      if (!li.isEmpty())
+                          handler.onContainersAllocated(li);
               }
-              // handler.onContainersAllocated(allocated);
+              else handler.onContainersAllocated(allocated);
           }
 
           progress = handler.getProgress();

@@ -217,7 +217,7 @@ public class NMClientAsyncImpl extends NMClientAsync {
 
   public void startContainerAsync(
       Container container, ContainerLaunchContext containerLaunchContext) {
-    super.startContainerAsyncByz(container,containerLaunchContext);
+    // super.startContainerAsyncByz(container,containerLaunchContext);
     // System.out.println("START!!!! " + allocationTable.values().size());
     // Object key = findContainerList(container.getId());
     // if (key == null) {LOG.info("SHIT WENT WRONG....START ASYNC");}
@@ -254,12 +254,9 @@ public class NMClientAsyncImpl extends NMClientAsync {
   }
 
   public void stopContainerAsync(ContainerId containerId, NodeId nodeId) {
-    
-      
-      super.stopContainerAsyncByz(containerId, nodeId);
-      
+      // super.stopContainerAsyncByz(containerId, nodeId);
       if (containers.get(containerId) == null) {
-      callbackHandler.onStopContainerError(containerId,
+          callbackHandler.onStopContainerError(containerId,
           RPCUtil.getRemoteException("Container " + containerId +
               " is neither started nor scheduled to start"));
     }
@@ -274,9 +271,7 @@ public class NMClientAsyncImpl extends NMClientAsync {
   }
 
  public void getContainerStatusAsync(ContainerId containerId, NodeId nodeId) {
-
-    super.getContainerStatusAsyncByz(containerId, nodeId);
-
+    // super.getContainerStatusAsyncByz(containerId, nodeId);
     try {
       events.put(new ContainerEvent(containerId, nodeId, null,
           ContainerEventType.QUERY_CONTAINER));
@@ -412,8 +407,6 @@ public class NMClientAsyncImpl extends NMClientAsync {
             container.nmClientAsync.getCallbackHandler().onContainerStarted(
                 containerId, allServiceResponse);
 
-                //NMClientAsyncImpl.super.onContainerStartedByz(containerId, allServiceResponse);
-
           } catch (Throwable thr) {
             // Don't process user created unchecked exception
             LOG.info("Unchecked exception is thrown from onContainerStarted for "
@@ -458,9 +451,6 @@ public class NMClientAsyncImpl extends NMClientAsync {
          try {
             container.nmClientAsync.getCallbackHandler().onContainerStopped(
                 event.getContainerId());
-
-                //NMClientAsyncImpl.super.onContainerStoppedByz(event.getContainerId());
-
           } catch (Throwable thr) {
             // Don't process user created unchecked exception
             LOG.info("Unchecked exception is thrown from onContainerStopped for "
