@@ -31,6 +31,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import java.lang.Boolean;
 
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -47,62 +51,25 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
-import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.NodeId;
 
 /**
- * <code>AMRMClientAsync</code> handles communication with the ResourceManager
- * and provides asynchronous updates on events such as container allocations and
- * completions.  It contains a thread that sends periodic heartbeats to the
- * ResourceManager.
+ * <code>Byzantine</code> handles Byzantine Fault tolerance. It does this by 
+ * overriding the communications with the RM and NM. 
  * 
- * It should be used by implementing a CallbackHandler:
- * <pre>
- * {@code
- * class MyCallbackHandler implements AMRMClientAsync.CallbackHandler {
- *   public void onContainersAllocated(List<Container> containers) {
- *     [run tasks on the containers]
- *   }
- *   
- *   public void onContainersCompleted(List<ContainerStatus> statuses) {
- *     [update progress, check whether app is done]
- *   }
- *   
- *   public void onNodesUpdated(List<NodeReport> updated) {}
- *   
- *   public void onReboot() {}
- * }
- * }
- * </pre>
- * 
- * The client's lifecycle should be managed similarly to the following:
- * 
- * <pre>
- * {@code
- * AMRMClientAsync asyncClient = 
- *     createAMRMClientAsync(appAttId, 1000, new MyCallbackhandler());
- * asyncClient.init(conf);
- * asyncClient.start();
- * RegisterApplicationMasterResponse response = asyncClient
- *    .registerApplicationMaster(appMasterHostname, appMasterRpcPort,
- *       appMasterTrackingUrl);
- * asyncClient.addContainerRequest(containerRequest);
- * [... wait for application to complete]
- * asyncClient.unregisterApplicationMaster(status, appMsg, trackingUrl);
- * asyncClient.stop();
- * }
- * </pre>
  */
 @Public
 @Stable
 
-public class Byzantine<T extends ContainerRequest> extends AbstractService {
+public class Byzantine<T extends ContainerRequest> extends AbstractService{
 
    
     //Had to make this class extend AbstractService because Java does not
@@ -113,6 +80,7 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
     public static Boolean byzantine_mode = true;
     public int NUM_REPLICAS = 4;
     
+    //need access to logger..
     private static final Log LOG = LogFactory.getLog(Byzantine.class);
 
     public static ConcurrentMap<ContainerRequest, ArrayList<Container>> allocationTable =
@@ -131,12 +99,9 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
     }
 
 
-    /**
-    * Request containers for resources before calling <code>allocate</code>
-    * @param req Resource request
-    */
-    public void addContainerRequest(T req){
-        LOG.info("Byz Add Container Request");
+    //Here are the functions from AMRMClientAsync which we need to have Byzantine implementations of 
+    public void addContainerRequestByz(T req){
+        LOG.info("***addContainerRequestByz***");
     }
 
     public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext){
@@ -159,7 +124,7 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
       return false;
     }
     return true;
-  }
+    }
     public int findKeyIndex(ContainerRequest key) {
         int i=0;
         for (ContainerRequest req : allocationTable.keySet()) {
@@ -170,7 +135,10 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
         System.out.println("KEY INDEX: RETURNING -1");
         return -1;
     }
-
+    public void removeContainerRequestByz(T req){
+        LOG.info("***removeContainerRequestByz***");
+    }
+    
     public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
         int i=0;
         for (Container con : dups) {
@@ -195,4 +163,74 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService {
         System.out.println("RETURNING NULL");
         return null;
     }
-}
+    public void releaseAssignedContainerByz(ContainerId containerId){
+        LOG.info("***releaseAssignedContainerByz***");
+    }
+
+ 
+    //AMRMClientAsync Callback functions
+    public void onContainersCompletedByz(List<ContainerStatus> statuses){
+        LOG.info("***onContainersCompletedByz***");
+    }
+    
+    public void onContainersAllocatedByz(List<Container> containers){
+        LOG.info("***onContainersAllocatedByz***");
+    }
+    
+    public void onShutdownRequestByz(){
+        LOG.info("***onShutdownRequestByz***");
+    }
+    
+    public void onNodesUpdatedByz(List<NodeReport> updatedNodes){
+        LOG.info("***onNodesUpdatedByz***");
+    }
+    
+    public float getProgressByz(){
+        return 0; 
+    }
+    
+    public void onErrorByz(Throwable e){
+        LOG.info("***onErrorByz***");
+    }
+
+
+
+
+    //Here are the functions from NMClientAsycn which we need to have Byzantine implementations of
+    public void startContainerAsyncByz(Container container, ContainerLaunchContext containerLaunchContext){
+         LOG.info("***startContainerAsyncByz***");
+    }
+    
+    public void stopContainerAsyncByz(ContainerId containerId, NodeId nodeId){
+         LOG.info("***stopContainerAsyncByz***");
+    }
+
+    public void getContainerStatusAsyncByz(ContainerId containerId, NodeId nodeId){
+         LOG.info("***getContainerStatusAsyncByz***"); 
+    }
+
+    //NMClientAsync Callabck Functions
+    public void onContainerStartedByz(ContainerId containerId,Map<String, ByteBuffer> allServiceResponse){
+        LOG.info("***onContainerStartedByz***");
+    }
+
+    public void onContainerStatusReceivedByz(ContainerId containerId, ContainerStatus containerStatus){
+        LOG.info("***onContainerStatusReceivedByz***");
+    }
+
+    public void onContainerStoppedByz(ContainerId containerId){
+        LOG.info("***onContainerStoppedByz***");
+    }
+
+    public void onStartContainerErrorByz(ContainerId containerId, Throwable t){
+        LOG.info("***onStartContainerErrorByz***");
+    }
+
+    public void onGetContainerStatusErrorByz(ContainerId containerId, Throwable t){
+        LOG.info("***onGetContainerStatusErrorByz***");
+    }
+
+    public void onStopContainerErrorByz(ContainerId containerId, Throwable t){
+        LOG.info("***onStopContainerErrorByz***");
+    }
+ }

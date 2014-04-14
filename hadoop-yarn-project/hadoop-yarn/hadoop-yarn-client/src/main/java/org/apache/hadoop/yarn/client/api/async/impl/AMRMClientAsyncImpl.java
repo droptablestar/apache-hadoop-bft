@@ -166,9 +166,8 @@ extends AMRMClientAsync<T> {
    * Request containers for resources before calling <code>allocate</code>
    * @param req Resource request
    */
-  @Override
   public void addContainerRequest(T req) {
-    super.addContainerRequest(req);
+    super.addContainerRequestByz(req);
 
     // check to see if this capability has been requested yet.
     if (!allocationTable.containsKey(req)) {
@@ -178,6 +177,8 @@ extends AMRMClientAsync<T> {
 
     for (int i=0; i<NUM_REPLICAS; i++)
         client.addContainerRequest(req);
+
+    client.addContainerRequest(req);
   }
 
   /**
@@ -309,6 +310,7 @@ extends AMRMClientAsync<T> {
           }
           List<NodeReport> updatedNodes = response.getUpdatedNodes();
           if (!updatedNodes.isEmpty()) {
+            AMRMClientAsyncImpl.super.onNodesUpdatedByz(updatedNodes);
             handler.onNodesUpdated(updatedNodes);
           }
 
