@@ -18,7 +18,13 @@
 
 package org.apache.hadoop.yarn.client.api.async;
 
+import java.io.PrintWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
@@ -30,7 +36,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import java.lang.Boolean;
-
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
@@ -43,6 +48,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -87,6 +93,10 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService{
         new ConcurrentHashMap<ContainerRequest, ArrayList<Container>>();
 
     public List<ArrayList<Boolean>> finishedContainers = new ArrayList<ArrayList<Boolean>>();
+
+    private String outputLocation = "stdout";
+
+    private Map<String, String> env = System.getenv();
     
     @Private
     @VisibleForTesting
@@ -117,8 +127,14 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService{
             int arrayIndex = findKeyIndex((ContainerRequest)key);
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-            if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) 
+            if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
+                Boolean isVerified = verify(allocationTable.get(key));
+                if (isVerified)
+                    System.out.println("THESE CONTAINERS ARE OK!!!");
+                else
+                    System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
                 finalCompleted.add(c);
+            }
         }
         return finalCompleted;
     }
@@ -208,6 +224,99 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService{
         return true;
     }
 
+    public void setOutputLocation(String outputLocation) {
+        this.outputLocation = outputLocation;
+    }
+
+    public Boolean verify(List<Container> containers) {
+        int[] outputs = new int[NUM_REPLICAS];
+        int i=0;
+        System.out.println("***VERIFY***");
+        for (Container c : containers) {
+            System.out.println(c.getId()+" "+c.getId().getApplicationAttemptId().getApplicationId());
+            int output = checkOutput(c, containers);
+            if (output == 0) return true;
+            outputs[i++] = output;
+        }
+        int sum = 0;
+        for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
+        for (i=0; i<NUM_REPLICAS; i++) System.out.print(outputs[i]);
+        System.out.println("\nSUM:"+sum+" <= "+((NUM_REPLICAS-Math.ceil(NUM_REPLICAS/2)-1)*2));
+        return sum <= ((NUM_REPLICAS-(Math.ceil(NUM_REPLICAS/2)-1))*2) ?
+            true : false;
+    }
+
+    private int checkOutput(Container c, List<Container> containers) {
+        String path = env.get("HADOOP_PREFIX")+"/logs/userlogs/";
+        int errorCount = 0;
+
+        PrintWriter writer = null;
+        PrintWriter writer0 = null;
+        PrintWriter writer1 = null;
+        try {
+            writer = new PrintWriter(
+            path+containers.get(0).getId().getApplicationAttemptId().getApplicationId()
+            +"/"+containers.get(0).getId()+"/"+outputLocation);
+
+            writer.println("The first line");
+            writer.flush();
+
+            writer0 = new PrintWriter(
+            path+containers.get(1).getId().getApplicationAttemptId().getApplicationId()
+            +"/"+containers.get(1).getId()+"/"+outputLocation);
+
+            writer0.println("The second line");
+            writer0.flush();
+
+            writer1 = new PrintWriter(
+            path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
+            +"/"+containers.get(2).getId()+"/"+outputLocation);
+
+            writer1.println("The third line");
+            writer1.flush();
+        } catch(FileNotFoundException e) {
+            System.out.println("File not found: "+e);
+        } finally {
+            try {writer.close();writer0.close();writer1.close();} catch(Exception e) {}
+        }
+
+        for (Container con : containers) {
+            String command = "diff "
+                    +path+c.getId().getApplicationAttemptId().getApplicationId()
+                    +"/"+c.getId()+"/"+outputLocation
+                    +" "+path+con.getId().getApplicationAttemptId().getApplicationId()
+                    +"/"+con.getId()+"/"+outputLocation;
+
+            if (c.getId().getId() != con.getId().getId()) {
+                System.out.println(command);
+                StringBuffer output = new StringBuffer();
+
+                Process p;
+                try {
+                    p = Runtime.getRuntime().exec(command);
+                    p.waitFor();
+                    BufferedReader reader =
+                        new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                    String line = "";
+                    while ((line = reader.readLine())!= null) 
+                        output.append(line);
+                    
+                    BufferedReader stderrReader = new BufferedReader(
+                        new InputStreamReader(p.getErrorStream()));
+                    line = "";
+                    while ((line = stderrReader.readLine()) != null)
+                        output.append(line);
+                    System.out.println("["+output.toString()+"]");
+                    if (!output.toString().equals("")) errorCount++;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return errorCount;
+    }
     // CURRENTLY UNUSED METHODS!
 
     public void removeContainerRequestByz(T req){
