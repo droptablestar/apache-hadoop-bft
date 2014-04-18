@@ -185,6 +185,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   public RegisterApplicationMasterResponse registerApplicationMaster(
       String appHostName, int appHostPort, String appTrackingUrl)
       throws YarnException, IOException {
+      System.out.println("***REGISTERING APPLICATION MASTER!!!!***");
     Preconditions.checkArgument(appHostName != null,
         "The host name should not be null");
     Preconditions.checkArgument(appHostPort >= -1, "Port number of the host"
@@ -318,6 +319,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         if (response.getIsUnregistered()) {
           break;
         }
+        LOG.info("##ADD##");
         LOG.info("Waiting for application to be successfully unregistered.");
         Thread.sleep(100);
       }
@@ -329,6 +331,8 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   
   @Override
   public synchronized void addContainerRequest(T req) {
+          LOG.info("***ADDCONTAINER**");
+          
     Preconditions.checkArgument(req != null,
         "Resource request can not be null.");
     Set<String> dedupedRacks = new HashSet<String>();
