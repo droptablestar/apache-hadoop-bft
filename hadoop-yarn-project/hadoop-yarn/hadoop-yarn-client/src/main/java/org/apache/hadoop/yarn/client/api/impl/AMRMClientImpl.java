@@ -319,7 +319,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         if (response.getIsUnregistered()) {
           break;
         }
-        LOG.info("##ADD##");
+        LOG.info("*****CHANGED a LINE*****");
         LOG.info("Waiting for application to be successfully unregistered.");
         Thread.sleep(100);
       }
