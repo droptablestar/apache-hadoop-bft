@@ -289,6 +289,14 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         }
       }
     }
+
+    if (byzantine.inByzantineMode()) {
+        allocateResponse = byzantine.onContainersAllocatedByz(allocateResponse);
+        allocateResponse = byzantine.onContainersCompletedByz(allocateResponse);
+        System.out.println("onAllocated: "+allocateResponse.getAllocatedContainers().size()
+                           +" onCompleted: "+allocateResponse.getCompletedContainersStatuses().size());
+    }
+    
     return allocateResponse;
   }
 

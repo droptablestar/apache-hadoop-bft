@@ -59,6 +59,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
+import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -99,8 +100,6 @@ public class Byzantine<T extends ContainerRequest> {
 
     private Boolean isDuplicateRequest = false;
 
-    public Byzantine() { super(); }
-    
     // Here are the functions from AMRMClientAsync which we need to have
     // Byzantine implementations of
     public void addContainerRequestByz(AMRMClientImpl amClient, T req){
@@ -117,54 +116,83 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     // //AMRMClientAsync Callback functions
-    // public List<ContainerStatus> onContainersCompletedByz(List<ContainerStatus> completed){
-    //     LOG.info("***onContainersCompletedByz***");
-    //     List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
-    //     for (ContainerStatus c : completed) {
-    //         Object key = findContainerList(c.getContainerId());
-    //         if (key == null) {LOG.error("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
-    //         ArrayList<Container> dups = allocationTable.get(key);
+    public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
+        LOG.info("***onContainersCompletedByz***");
+        List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
+        List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
+        for (ContainerStatus c : completed) {
+            System.out.println("FINISHED CONTAINER: "+c.getContainerId());
+            Object key = findContainerList(c.getContainerId());
+            if (key == null) {LOG.error("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
+            ArrayList<Container> dups = allocationTable.get(key);
 
-    //         int arrayIndex = findKeyIndex((ContainerRequest)key);
-    //         int containerIndex = findContainerIndex(dups, c.getContainerId());
-    //         finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-    //         if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-    //             Boolean isVerified = verify(allocationTable.get(key));
-    //             if (isVerified)
-    //                 System.out.println("THESE CONTAINERS ARE OK!!!");
-    //             else
-    //                 System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
-    //             finalCompleted.add(c);
-    //         }
-    //     }
-    //     return finalCompleted;
-    // }
+            int arrayIndex = findKeyIndex((ContainerRequest)key);
+            int containerIndex = findContainerIndex(dups, c.getContainerId());
+            finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
+            System.out.println("key: "+key+" arrayIndex: "+arrayIndex+ " containerIndex: "+containerIndex);
+            for (List<Boolean> bl : finishedContainers) {
+                for (Boolean b : bl) 
+                    System.out.print(b + " ");
+                System.out.println();
+            }
+            if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
+                // Boolean isVerified = verify(allocationTable.get(key));
+                // if (isVerified)
+                //     System.out.println("THESE CONTAINERS ARE OK!!!");
+                // else
+                //     System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                finalCompleted.add(c);
+            }
+        }
+        System.out.println("finalCompleted: "+finalCompleted.size());
+        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
+                                            finalCompleted,
+                                            allocateResponse.getAllocatedContainers(), allocateResponse.getUpdatedNodes(),
+                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
+                                            allocateResponse.getNumClusterNodes(),
+                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+    }
 
-    // public List<ArrayList<Container>> onContainersAllocatedByz(List<Container> allocated){
-    //     LOG.info("***onContainersAllocatedByz***");
-    //     List<ArrayList<Container>> toReturn = new ArrayList<ArrayList<Container>>();
-    //     // loop through every container and add it to the allocationTable
-    //     for (Container c : allocated) {
-    //         int i = 0;
-    //         for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
-    //                  allocationTable.entrySet()) {
-    //             ContainerRequest key = e.getKey();
-    //             ArrayList<Container> dups = e.getValue();
-    //             if (resourceLessThanEqual(key.getCapability(), c.getResource())
-    //                 && dups.size() < NUM_REPLICAS) {
-    //                 dups.add(c);
-    //                 finishedContainers.get(i).add(Boolean.FALSE);
+    public AllocateResponse onContainersAllocatedByz(AllocateResponse allocateResponse){
+        LOG.info("***onContainersAllocatedByz***");
+        List<Container> allocated = allocateResponse.getAllocatedContainers();
+        // loop through every container and add it to the allocationTable
+        for (Container c : allocated) {
+            int i = 0;
+            for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+                     allocationTable.entrySet()) {
+                ContainerRequest key = e.getKey();
+                List<Container> dups = e.getValue();
+                System.out.println("ADDING CONTAINER: "+c.getId());
+                if (containsId(c.getId())) {System.out.println("BREAKING: "+c.getId()); break;}
+                if (resourceLessThanEqual(key.getCapability(), c.getResource())
+                    && dups.size() < NUM_REPLICAS) {
+                    dups.add(c);
+                    finishedContainers.get(i).add(Boolean.FALSE);
 
-    //                 // all duplicates have been allocated
-    //                 if (dups.size() == NUM_REPLICAS) 
-    //                     toReturn.add(dups);
-    //                 break;
-    //             }
-    //             i++;
-    //         }
-    //     }
-    //     return toReturn;
-    // }
+                    // all duplicates have been allocated
+                    if (dups.size() == NUM_REPLICAS) {
+                        for (Container con : dups)
+                            System.out.print(con.getId() + " ");
+                        System.out.println();
+                        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
+                                                            allocateResponse.getCompletedContainersStatuses(),
+                                                            dups, allocateResponse.getUpdatedNodes(),
+                                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
+                                                            allocateResponse.getNumClusterNodes(),
+                                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+                    }
+                }
+                i++;
+            }
+        }
+        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
+                                            allocateResponse.getCompletedContainersStatuses(),
+                                            new ArrayList<Container>(), allocateResponse.getUpdatedNodes(),
+                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
+                                            allocateResponse.getNumClusterNodes(),
+                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+    }
 
     public void setOutputLocation(String outputLocation) {
         this.outputLocation = outputLocation;
@@ -260,6 +288,16 @@ public class Byzantine<T extends ContainerRequest> {
         return errorCount;
     }
     // HELPER METHODS
+    private Boolean containsId(ContainerId id) {
+        for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+                 allocationTable.entrySet()) {
+            List<Container> dups = e.getValue();
+            for (Container c : dups)
+                if (c.getId().getId() == id.getId())
+                    return true;
+        }
+        return false;
+    }
     public Boolean inByzantineMode() {
         return inByzantineMode;
     }
