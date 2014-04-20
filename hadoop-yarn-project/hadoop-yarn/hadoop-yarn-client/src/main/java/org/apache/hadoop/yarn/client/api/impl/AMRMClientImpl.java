@@ -56,6 +56,7 @@ import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.client.ClientRMProxy;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.Byzantine;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.InvalidContainerRequestException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -83,6 +84,8 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   
   protected final Set<String> blacklistAdditions = new HashSet<String>();
   protected final Set<String> blacklistRemovals = new HashSet<String>();
+
+  private Byzantine byzantine = new Byzantine();
   
   class ResourceRequestInfo {
     ResourceRequest remoteRequest;
@@ -129,7 +132,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
     int mem1 = arg1.getMemory();
     int cpu0 = arg0.getVirtualCores();
     int cpu1 = arg1.getVirtualCores();
-    
+
     if(mem0 <= mem1 && cpu0 <= cpu1) { 
       return true;
     }
@@ -331,10 +334,13 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   
   @Override
   public synchronized void addContainerRequest(T req) {
-          LOG.info("***ADDCONTAINER**");
-          
     Preconditions.checkArgument(req != null,
-        "Resource request can not be null.");
+             "Resource request can not be null.");
+    if (byzantine.inByzantineMode() && !byzantine.isDuplicateRequest()) {
+        byzantine.addContainerRequestByz(this, req);
+        return;
+    }
+    System.out.println("***addContainerRequest()***");
     Set<String> dedupedRacks = new HashSet<String>();
     if (req.getRacks() != null) {
       dedupedRacks.addAll(req.getRacks());

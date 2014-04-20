@@ -16,7 +16,7 @@
 * limitations under the License.
 */
 
-package org.apache.hadoop.yarn.client.api.async;
+package org.apache.hadoop.yarn.client.api;
 
 import java.io.PrintWriter;
 import java.io.FileNotFoundException;
@@ -57,7 +57,6 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
-import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -71,13 +70,12 @@ import org.apache.hadoop.yarn.api.records.NodeId;
  * <code>Byzantine</code> handles Byzantine Fault tolerance. It does this by 
  * overriding the communications with the RM and NM. 
  * 
+
  */
 @Public
 @Stable
 
-public class Byzantine<T extends ContainerRequest> extends AbstractService{
-
-   
+public class Byzantine<T extends ContainerRequest> {
     //Had to make this class extend AbstractService because Java does not
     //allow multiple inheritance. Now AMRMClientAsyncByz can extend Byzantine instead
     //of AbstractService
@@ -89,140 +87,84 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService{
     //need access to logger..
     private static final Log LOG = LogFactory.getLog(Byzantine.class);
 
-    public static ConcurrentMap<ContainerRequest, ArrayList<Container>> allocationTable =
+    public static ConcurrentMap<ContainerRequest,ArrayList<Container>> allocationTable =
         new ConcurrentHashMap<ContainerRequest, ArrayList<Container>>();
 
-    public List<ArrayList<Boolean>> finishedContainers = new ArrayList<ArrayList<Boolean>>();
+    public List<ArrayList<Boolean>> finishedContainers =
+        new ArrayList<ArrayList<Boolean>>();
 
     private String outputLocation = "stdout";
 
     private Map<String, String> env = System.getenv();
-    
-    @Private
-    @VisibleForTesting
-    public Byzantine(String name) {
-      super(name);
-    }
 
-    //Here are the functions from AMRMClientAsync which we need to have Byzantine implementations of 
-    public void addContainerRequestByz(T req){
+    private Boolean isDuplicateRequest = false;
+
+    public Byzantine() { super(); }
+    
+    // Here are the functions from AMRMClientAsync which we need to have
+    // Byzantine implementations of
+    public void addContainerRequestByz(AMRMClientImpl amClient, T req){
         LOG.info("***addContainerRequestByz***");
 
-        // check to see if this capability has been requested yet.
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
             finishedContainers.add(new ArrayList<Boolean>(1));
         }
+        isDuplicateRequest = true;
+        for (int i=0; i<NUM_REPLICAS; i++)
+            amClient.addContainerRequest(req);
+        isDuplicateRequest = false;
     }
 
-    //AMRMClientAsync Callback functions
-    public List<ContainerStatus> onContainersCompletedByz(List<ContainerStatus> completed){
-        LOG.info("***onContainersCompletedByz***");
-        List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
-        for (ContainerStatus c : completed) {
-            Object key = findContainerList(c.getContainerId());
-            if (key == null) {LOG.error("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
-            ArrayList<Container> dups = allocationTable.get(key);
+    // //AMRMClientAsync Callback functions
+    // public List<ContainerStatus> onContainersCompletedByz(List<ContainerStatus> completed){
+    //     LOG.info("***onContainersCompletedByz***");
+    //     List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
+    //     for (ContainerStatus c : completed) {
+    //         Object key = findContainerList(c.getContainerId());
+    //         if (key == null) {LOG.error("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
+    //         ArrayList<Container> dups = allocationTable.get(key);
 
-            int arrayIndex = findKeyIndex((ContainerRequest)key);
-            int containerIndex = findContainerIndex(dups, c.getContainerId());
-            finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-            if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                Boolean isVerified = verify(allocationTable.get(key));
-                if (isVerified)
-                    System.out.println("THESE CONTAINERS ARE OK!!!");
-                else
-                    System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
-                finalCompleted.add(c);
-            }
-        }
-        return finalCompleted;
-    }
+    //         int arrayIndex = findKeyIndex((ContainerRequest)key);
+    //         int containerIndex = findContainerIndex(dups, c.getContainerId());
+    //         finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
+    //         if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
+    //             Boolean isVerified = verify(allocationTable.get(key));
+    //             if (isVerified)
+    //                 System.out.println("THESE CONTAINERS ARE OK!!!");
+    //             else
+    //                 System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+    //             finalCompleted.add(c);
+    //         }
+    //     }
+    //     return finalCompleted;
+    // }
 
-    public List<ArrayList<Container>> onContainersAllocatedByz(List<Container> allocated){
-        LOG.info("***onContainersAllocatedByz***");
-        List<ArrayList<Container>> toReturn = new ArrayList<ArrayList<Container>>();
-        // loop through every container and add it to the allocationTable
-        for (Container c : allocated) {
-            int i = 0;
-            for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
-                     allocationTable.entrySet()) {
-                ContainerRequest key = e.getKey();
-                ArrayList<Container> dups = e.getValue();
-                if (resourceLessThanEqual(key.getCapability(), c.getResource())
-                    && dups.size() < NUM_REPLICAS) {
-                    dups.add(c);
-                    finishedContainers.get(i).add(Boolean.FALSE);
+    // public List<ArrayList<Container>> onContainersAllocatedByz(List<Container> allocated){
+    //     LOG.info("***onContainersAllocatedByz***");
+    //     List<ArrayList<Container>> toReturn = new ArrayList<ArrayList<Container>>();
+    //     // loop through every container and add it to the allocationTable
+    //     for (Container c : allocated) {
+    //         int i = 0;
+    //         for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+    //                  allocationTable.entrySet()) {
+    //             ContainerRequest key = e.getKey();
+    //             ArrayList<Container> dups = e.getValue();
+    //             if (resourceLessThanEqual(key.getCapability(), c.getResource())
+    //                 && dups.size() < NUM_REPLICAS) {
+    //                 dups.add(c);
+    //                 finishedContainers.get(i).add(Boolean.FALSE);
 
-                    // all duplicates have been allocated
-                    if (dups.size() == NUM_REPLICAS) 
-                        toReturn.add(dups);
-                    break;
-                }
-                i++;
-            }
-        }
-        return toReturn;
-    }
-
-    // HELPER METHODS
-    public Boolean inByzantineMode() {
-        return inByzantineMode;
-    }
-
-    public void setInByzantine(Boolean inByzantineMode){
-        this.inByzantineMode = inByzantineMode;
-    }
-    
-    public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
-        int i=0;
-        for (Container con : dups) {
-            if (con.getId().getId() == cid.getId())
-                return i;
-            i++;
-        }
-        LOG.error("CONTAINER INDEX: RETURNING -1");
-        return -1;
-    }
- 
-    public int findKeyIndex(ContainerRequest key) {
-        int i=0;
-        for (ContainerRequest req : allocationTable.keySet()) {
-            if (key.equals(req))
-                return i;
-            i++;
-        }
-        LOG.error("KEY INDEX: RETURNING -1");
-        return -1;
-    }
-
-    public ContainerRequest findContainerList(ContainerId cid) {
-        for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
-                 allocationTable.entrySet()) {
-            ContainerRequest key = e.getKey();
-            ArrayList<Container> dups = e.getValue();
-            for (Container con : dups) {
-                if (con.getId().getId() == cid.getId())
-                    return key;
-            }
-        }
-        LOG.error("RETURNING NULL");
-        return null;
-    }
-
-    public boolean resourceLessThanEqual(Object obj0, Object obj1) {
-        if (obj0 == null || obj1 == null)
-            return false;
-        if (!(obj0 instanceof Resource) && !(obj1 instanceof Resource))
-            return false;
-        Resource r0 = (Resource) obj0;
-        Resource r1 = (Resource) obj1;
-        if (r0.getMemory() > r1.getMemory() ||
-            r0.getVirtualCores() > r1.getVirtualCores()) {
-            return false;
-        }
-        return true;
-    }
+    //                 // all duplicates have been allocated
+    //                 if (dups.size() == NUM_REPLICAS) 
+    //                     toReturn.add(dups);
+    //                 break;
+    //             }
+    //             i++;
+    //         }
+    //     }
+    //     return toReturn;
+    // }
 
     public void setOutputLocation(String outputLocation) {
         this.outputLocation = outputLocation;
@@ -317,6 +259,69 @@ public class Byzantine<T extends ContainerRequest> extends AbstractService{
 
         return errorCount;
     }
+    // HELPER METHODS
+    public Boolean inByzantineMode() {
+        return inByzantineMode;
+    }
+
+    public void setInByzantine(Boolean inByzantineMode){
+        this.inByzantineMode = inByzantineMode;
+    }
+    
+    public Boolean isDuplicateRequest() {
+        return isDuplicateRequest;
+    }
+
+    public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
+        int i=0;
+        for (Container con : dups) {
+            if (con.getId().getId() == cid.getId())
+                return i;
+            i++;
+        }
+        LOG.error("CONTAINER INDEX: RETURNING -1");
+        return -1;
+    }
+ 
+    public int findKeyIndex(ContainerRequest key) {
+        int i=0;
+        for (ContainerRequest req : allocationTable.keySet()) {
+            if (key.equals(req))
+                return i;
+            i++;
+        }
+        LOG.error("KEY INDEX: RETURNING -1");
+        return -1;
+    }
+
+    public ContainerRequest findContainerList(ContainerId cid) {
+        for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+                 allocationTable.entrySet()) {
+            ContainerRequest key = e.getKey();
+            ArrayList<Container> dups = e.getValue();
+            for (Container con : dups) {
+                if (con.getId().getId() == cid.getId())
+                    return key;
+            }
+        }
+        LOG.error("RETURNING NULL");
+        return null;
+    }
+
+    public boolean resourceLessThanEqual(Object obj0, Object obj1) {
+        if (obj0 == null || obj1 == null)
+            return false;
+        if (!(obj0 instanceof Resource) && !(obj1 instanceof Resource))
+            return false;
+        Resource r0 = (Resource) obj0;
+        Resource r1 = (Resource) obj1;
+        if (r0.getMemory() > r1.getMemory() ||
+            r0.getVirtualCores() > r1.getVirtualCores()) {
+            return false;
+        }
+        return true;
+    }
+
     // CURRENTLY UNUSED METHODS!
 
     public void removeContainerRequestByz(T req){

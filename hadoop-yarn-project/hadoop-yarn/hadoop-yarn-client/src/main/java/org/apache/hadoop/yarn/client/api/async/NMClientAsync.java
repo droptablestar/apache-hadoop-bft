@@ -39,9 +39,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import org.apache.hadoop.yarn.client.api.async.Byzantine;
-
-
 /**
  * <code>NMClientAsync</code> handles communication with all the NodeManagers
  * and provides asynchronous updates on getting responses from them. It
@@ -109,7 +106,7 @@ import org.apache.hadoop.yarn.client.api.async.Byzantine;
  */
 @Public
 @Stable
-public abstract class NMClientAsync extends Byzantine {
+public abstract class NMClientAsync extends AbstractService {
 
   protected NMClient client;
   protected CallbackHandler callbackHandler;

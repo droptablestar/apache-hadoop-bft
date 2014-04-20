@@ -41,8 +41,9 @@ import com.google.common.collect.ImmutableList;
 
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public abstract class AMRMClient<T extends AMRMClient.ContainerRequest> extends
-    AbstractService {
+
+public abstract class AMRMClient<T extends AMRMClient.ContainerRequest>
+    extends AbstractService {
 
   /**
    * Create a new instance of AMRMClient.
