@@ -9,7 +9,7 @@ if [[ $1 == 'client' ]]; then
     echo cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-client/target/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
     cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-client/target/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
 
-    copy yarn jars from distribution to spark
+    ##copy yarn jars from distribution to spark
     echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
     cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
     echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-api-2.3.0.jar

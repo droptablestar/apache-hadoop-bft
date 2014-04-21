@@ -141,7 +141,7 @@ public class Byzantine<T extends ContainerRequest> {
             ctx.setLocalResources(containerLaunchContext.getLocalResources());
             ctx.setServiceData(containerLaunchContext.getServiceData());
             ctx.setEnvironment(containerLaunchContext.getEnvironment());
-            ctx.setCommands(containerLaunchContext.getCommands());
+            ctx.setCommands(fixCommand(containerLaunchContext.getCommands(),String.valueOf(c.getId().getId())));
             ctx.setApplicationACLs(containerLaunchContext.getApplicationACLs());
             
             //then launch him
@@ -153,7 +153,43 @@ public class Byzantine<T extends ContainerRequest> {
             }
             isDuplicateStart = false;
         }
-   }
+    }
+
+    public static String join(String r[], String d)
+    {
+            if (r.length == 0) return "";
+            StringBuilder sb = new StringBuilder();
+            int i;
+            for(i=0; i<r.length-1;i++)
+                sb.append(r[i]+d);
+            return sb.toString()+r[i];
+    }
+    
+    private List<String> fixCommand(List<String> cmds, String containerID){
+
+
+        List<String> retList = new ArrayList<String>();
+
+        for (String command : cmds){
+            
+            if(command.contains("org.apache.spark.executor.CoarseGrainedExecutorBackend")){
+                String splits[] = command.split(" ");
+                for (int i=0; i<splits.length; i++){
+                    //System.out.println(i+" : "+ splits[i]);
+                    if(splits[i].contains("org.apache.spark.executor")){
+                        splits[i+2] = containerID;
+                    }
+                }
+      
+                command = join(splits, " ");
+            }
+
+            retList.add(command);
+        }
+
+        return retList;
+    }
+
 
     // //AMRMClientAsync Callback functions
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
@@ -178,7 +214,7 @@ public class Byzantine<T extends ContainerRequest> {
                      LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
 
                     //change container exit status to report byzantine failure
-                    c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
+                    //c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
 
                  }
                 finalCompleted.add(c);
