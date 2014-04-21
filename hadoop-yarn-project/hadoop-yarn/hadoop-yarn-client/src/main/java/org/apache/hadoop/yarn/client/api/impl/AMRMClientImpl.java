@@ -188,7 +188,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   public RegisterApplicationMasterResponse registerApplicationMaster(
       String appHostName, int appHostPort, String appTrackingUrl)
       throws YarnException, IOException {
-      System.out.println("***REGISTERING APPLICATION MASTER!!!!***");
+      LOG.info("***REGISTERING APPLICATION MASTER!!!!***");
     Preconditions.checkArgument(appHostName != null,
         "The host name should not be null");
     Preconditions.checkArgument(appHostPort >= -1, "Port number of the host"
@@ -246,6 +246,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         allocateRequest =
             AllocateRequest.newInstance(lastResponseId, progressIndicator,
               askList, releaseList, blacklistRequest);
+        LOG.info("LASTRESPONSE: "+lastResponseId+" PROGRESS: "+progressIndicator);
         // clear blacklistAdditions and blacklistRemovals before 
         // unsynchronized part
         blacklistAdditions.clear();
@@ -290,11 +291,12 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       }
     }
 
+    LOG.info("BYZANTINE MODE: "+byzantine.inByzantineMode());
     if (byzantine.inByzantineMode()) {
         allocateResponse = byzantine.onContainersAllocatedByz(allocateResponse);
         allocateResponse = byzantine.onContainersCompletedByz(allocateResponse);
-        System.out.println("onAllocated: "+allocateResponse.getAllocatedContainers().size()
-                           +" onCompleted: "+allocateResponse.getCompletedContainersStatuses().size());
+        LOG.info("onAllocated: "+allocateResponse.getAllocatedContainers().size()
+                 +" onCompleted: "+allocateResponse.getCompletedContainersStatuses().size());
     }
     
     return allocateResponse;
@@ -348,7 +350,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         byzantine.addContainerRequestByz(this, req);
         return;
     }
-    System.out.println("***addContainerRequest()***");
+    LOG.info("***addContainerRequest()*** "+req);
     Set<String> dedupedRacks = new HashSet<String>();
     if (req.getRacks() != null) {
       dedupedRacks.addAll(req.getRacks());

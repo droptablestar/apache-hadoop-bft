@@ -109,7 +109,7 @@ public class Byzantine<T extends ContainerRequest> {
     // Here are the functions from AMRMClientAsync which we need to have
     // Byzantine implementations of
     public void addContainerRequestByz(AMRMClientImpl amClient, T req){
-        System.out.println("***addContainerRequestByz***");
+        LOG.info("***addContainerRequestByz***");
 
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
@@ -123,26 +123,16 @@ public class Byzantine<T extends ContainerRequest> {
 
 
     public void startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
-        
-        
-        System.out.println("***startContainerByz***");
-
+        LOG.info("***startContainerByz***");
 
         //here we need to duplicate this start message for all the containers
-       
-
         List<Container> dups = getDups(container.getId());
-        
         for( Container c : dups ){
-
             //dont want to relaunch ourselves
             if(c.getId().getId() == container.getId().getId()){
                 continue;
             }
 
-            //printLaunchContext(containerLaunchContext);
-
-            
             //create a new container launch context for the duplicate
             ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 
@@ -166,54 +156,36 @@ public class Byzantine<T extends ContainerRequest> {
 
     // //AMRMClientAsync Callback functions
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
-        System.out.println("***onContainersCompletedByz***");
+        LOG.info("***onContainersCompletedByz***");
         List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
         List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
+
         for (ContainerStatus c : completed) {
-            System.out.println("FINISHED CONTAINER: "+c.getContainerId());
             Object key = findContainerList(c.getContainerId());
-            if (key == null) {LOG.error("SHIT WENT WRONG....AMRM ASYNC"+c.getContainerId()); continue;}
+            if (key == null) {LOG.error("ERROR: allocateResponse()"+c.getContainerId()); continue;}
             ArrayList<Container> dups = allocationTable.get(key);
 
             int arrayIndex = findKeyIndex((ContainerRequest)key);
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-            System.out.println("key: "+key+" arrayIndex: "+arrayIndex+ " containerIndex: "+containerIndex);
-            for (List<Boolean> bl : finishedContainers) {
-                for (Boolean b : bl) 
-                    System.out.print(b + " ");
-                System.out.println();
-            }
             if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
                 // Boolean isVerified = verify(allocationTable.get(key));
                 // if (isVerified)
-                //     System.out.println("THESE CONTAINERS ARE OK!!!");
+                //     LOG.info("THESE CONTAINERS ARE OK!!!");
                 // else
-                //     System.out.println("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                //     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
                 finalCompleted.add(c);
             }
         }
-        System.out.println("finalCompleted: "+finalCompleted.size());
-        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
-                                            finalCompleted,
-                                            allocateResponse.getAllocatedContainers(), allocateResponse.getUpdatedNodes(),
-                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
-                                            allocateResponse.getNumClusterNodes(),
-                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+        return createAllocateResponse(finalCompleted,
+                                      allocateResponse.getAllocatedContainers(),
+                                      allocateResponse);
     }
 
     public AllocateResponse onContainersAllocatedByz(AllocateResponse allocateResponse){
-        System.out.println("***onContainersAllocatedByz***");
+        LOG.info("***onContainersAllocatedByz***");
         List<Container> allocated = allocateResponse.getAllocatedContainers();
         
-      
-        System.out.println("Container Allocation Size: " + allocated.size());
-        if(allocated == null){
-            System.out.println("NULL CONTAINER SHIT");
-            return allocateResponse;
-        }
-        
-       
         // loop through every container and add it to the allocationTable
         for (Container c : allocated) {
             int i = 0;
@@ -221,39 +193,27 @@ public class Byzantine<T extends ContainerRequest> {
                      allocationTable.entrySet()) {
                 ContainerRequest key = e.getKey();
                 List<Container> dups = e.getValue();
-                System.out.println("ALLOCATED CONTAINER: "+c.getId());
-                if (containsId(c.getId())) {System.out.println("\talready in table: "+c.getId()); break;}
+                if (containsId(c.getId())) break;
                 if (resourceLessThanEqual(key.getCapability(), c.getResource())
                     && dups.size() < NUM_REPLICAS) {
 
-                    System.out.println("ADDING CONTAINER: "+c.getId());
                     dups.add(c);
                     finishedContainers.get(i).add(Boolean.FALSE);
 
                     // all duplicates have been allocated
                     if (dups.size() == NUM_REPLICAS) {
-                        System.out.println("Sending Allocation");
-                        for (Container con : dups.subList(dups.size()-1, dups.size()))
-                            System.out.print(con.getId() + " ");
-                        System.out.println();
-                        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
-                                                            allocateResponse.getCompletedContainersStatuses(),
-                                                            dups.subList(dups.size()-1, dups.size()), allocateResponse.getUpdatedNodes(),
-                                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
-                                                            allocateResponse.getNumClusterNodes(),
-                                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+                        return createAllocateResponse(allocateResponse.getCompletedContainersStatuses(),
+                                                      dups.subList(dups.size()-1, dups.size()),
+                                                      allocateResponse);
                     }
                     break;
                 }
                 i++;
             }
         }
-        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
-                                            allocateResponse.getCompletedContainersStatuses(),
-                                            new ArrayList<Container>(), allocateResponse.getUpdatedNodes(),
-                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
-                                            allocateResponse.getNumClusterNodes(),
-                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+        return createAllocateResponse(allocateResponse.getCompletedContainersStatuses(),
+                                      new ArrayList<Container>(),
+                                      allocateResponse);
     }
 
     public void setOutputLocation(String outputLocation) {
@@ -263,9 +223,9 @@ public class Byzantine<T extends ContainerRequest> {
     public Boolean verify(List<Container> containers) {
         int[] outputs = new int[NUM_REPLICAS];
         int i=0;
-        System.out.println("***VERIFY***");
+        LOG.info("***VERIFY***");
         for (Container c : containers) {
-            System.out.println(c.getId()+" "+c.getId().getApplicationAttemptId().getApplicationId());
+            LOG.info(c.getId()+" "+c.getId().getApplicationAttemptId().getApplicationId());
             int output = checkOutput(c, containers);
             if (output == 0) return true;
             outputs[i++] = output;
@@ -273,7 +233,7 @@ public class Byzantine<T extends ContainerRequest> {
         int sum = 0;
         for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
         for (i=0; i<NUM_REPLICAS; i++) System.out.print(outputs[i]);
-        System.out.println("\nSUM:"+sum+" <= "+((NUM_REPLICAS-Math.ceil(NUM_REPLICAS/2)-1)*2));
+        LOG.info("\nSUM:"+sum+" <= "+((NUM_REPLICAS-Math.ceil(NUM_REPLICAS/2)-1)*2));
         return sum <= ((NUM_REPLICAS-(Math.ceil(NUM_REPLICAS/2)-1))*2) ?
             true : false;
     }
@@ -307,7 +267,7 @@ public class Byzantine<T extends ContainerRequest> {
             writer1.println("The third line");
             writer1.flush();
         } catch(FileNotFoundException e) {
-            System.out.println("File not found: "+e);
+            LOG.info("File not found: "+e);
         } finally {
             try {writer.close();writer0.close();writer1.close();} catch(Exception e) {}
         }
@@ -320,7 +280,7 @@ public class Byzantine<T extends ContainerRequest> {
                     +"/"+con.getId()+"/"+outputLocation;
 
             if (c.getId().getId() != con.getId().getId()) {
-                System.out.println(command);
+                LOG.info(command);
                 StringBuffer output = new StringBuffer();
 
                 Process p;
@@ -339,7 +299,7 @@ public class Byzantine<T extends ContainerRequest> {
                     line = "";
                     while ((line = stderrReader.readLine()) != null)
                         output.append(line);
-                    System.out.println("["+output.toString()+"]");
+                    LOG.info("["+output.toString()+"]");
                     if (!output.toString().equals("")) errorCount++;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -350,6 +310,17 @@ public class Byzantine<T extends ContainerRequest> {
         return errorCount;
     }
     // HELPER METHODS
+
+    private AllocateResponse createAllocateResponse(List<ContainerStatus> statuses,
+                                                    List<Container> duplicates,
+                                                    AllocateResponse allocateResponse) {
+        return AllocateResponse.newInstance(allocateResponse.getResponseId(),
+                                            statuses, duplicates, allocateResponse.getUpdatedNodes(),
+                                            allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
+                                            allocateResponse.getNumClusterNodes(),
+                                            allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
+    }
+
     private Boolean containsId(ContainerId id) {
         for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
                  allocationTable.entrySet()) {
@@ -363,24 +334,12 @@ public class Byzantine<T extends ContainerRequest> {
 
 
     private void printLaunchContext(ContainerLaunchContext ctx){
-
-
-            //ctx.getTokens();
-            //ctx.getLocalResources();
-            //ctx.getServiceData();
-            //ctx.getEnvironment();
-            
-            
-            System.out.println("Command List:");
-            for(String cmd : ctx.getCommands()){
-                System.out.print(cmd + " ");
-            }
-            System.out.println("");
-
-
-            //ctx.getApplicationACLs();
+        LOG.info("Command List:");
+        for(String cmd : ctx.getCommands()){
+            System.out.print(cmd + " ");
+        }
+        LOG.info("");
     }
-
 
     private List<Container> getDups(ContainerId id){
         for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
@@ -457,73 +416,5 @@ public class Byzantine<T extends ContainerRequest> {
             return false;
         }
         return true;
-    }
-
-    // CURRENTLY UNUSED METHODS!
-
-    public void removeContainerRequestByz(T req){
-        LOG.info("***removeContainerRequestByz***");
-    }
-    
-    public void releaseAssignedContainerByz(ContainerId containerId){
-        LOG.info("***releaseAssignedContainerByz***");
-    }
-
-    public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext){
-        LOG.info("Byz Start Container Async::::::TEST");
-    }
-
-    public void onShutdownRequestByz(){
-        LOG.info("***onShutdownRequestByz***");
-    }
-    
-    public void onNodesUpdatedByz(List<NodeReport> updatedNodes){
-        LOG.info("***onNodesUpdatedByz***");
-    }
-    
-    public float getProgressByz(){
-        return 0; 
-    }
-    
-    public void onErrorByz(Throwable e){
-        LOG.info("***onErrorByz***");
-    }
-
-    //Here are the functions from NMClientAsycn which we need to have Byzantine implementations of
-    public void startContainerAsyncByz(Container container, ContainerLaunchContext containerLaunchContext){
-         LOG.info("***startContainerAsyncByz***");
-    }
-    
-    public void stopContainerAsyncByz(ContainerId containerId, NodeId nodeId){
-         LOG.info("***stopContainerAsyncByz***");
-    }
-
-    public void getContainerStatusAsyncByz(ContainerId containerId, NodeId nodeId){
-         LOG.info("***getContainerStatusAsyncByz***"); 
-    }
-
-    //NMClientAsync Callabck Functions
-    public void onContainerStartedByz(ContainerId containerId,Map<String, ByteBuffer> allServiceResponse){
-        LOG.info("***onContainerStartedByz***");
-    }
-
-    public void onContainerStatusReceivedByz(ContainerId containerId, ContainerStatus containerStatus){
-        LOG.info("***onContainerStatusReceivedByz***");
-    }
-
-    public void onContainerStoppedByz(ContainerId containerId){
-        LOG.info("***onContainerStoppedByz***");
-    }
-
-    public void onStartContainerErrorByz(ContainerId containerId, Throwable t){
-        LOG.info("***onStartContainerErrorByz***");
-    }
-
-    public void onGetContainerStatusErrorByz(ContainerId containerId, Throwable t){
-        LOG.info("***onGetContainerStatusErrorByz***");
-    }
-
-    public void onStopContainerErrorByz(ContainerId containerId, Throwable t){
-        LOG.info("***onStopContainerErrorByz***");
     }
  }
