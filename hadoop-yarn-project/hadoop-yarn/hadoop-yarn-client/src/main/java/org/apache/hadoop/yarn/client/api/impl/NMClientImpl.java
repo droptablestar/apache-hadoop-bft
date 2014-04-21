@@ -52,6 +52,9 @@ import org.apache.hadoop.yarn.client.api.impl.ContainerManagementProtocolProxy.C
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 
+import org.apache.hadoop.yarn.client.api.Byzantine;
+
+
 /**
  * <p>
  * This class implements {@link NMClient}. All the APIs are blocking.
@@ -91,6 +94,9 @@ public class NMClientImpl extends NMClient {
   private final AtomicBoolean cleanupRunningContainers = new AtomicBoolean(true);
   private ContainerManagementProtocolProxy cmProxy;
 
+ 
+  private Byzantine byzantine = new Byzantine();
+ 
   public NMClientImpl() {
     super(NMClientImpl.class.getName());
   }
@@ -181,6 +187,13 @@ public class NMClientImpl extends NMClient {
     // Do synchronization on StartedContainer to prevent race condition
     // between startContainer and stopContainer only when startContainer is
     // in progress for a given container.
+
+
+    if (byzantine.inByzantineMode() && !byzantine.isDuplicateStart()) {
+        byzantine.startContainerByz(this, container, containerLaunchContext);
+    }
+ 
+
     StartedContainer startingContainer = createStartedContainer(container);
     synchronized (startingContainer) {
       addStartingContainer(startingContainer);

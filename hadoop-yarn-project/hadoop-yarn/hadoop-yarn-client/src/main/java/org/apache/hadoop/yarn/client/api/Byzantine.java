@@ -49,6 +49,7 @@ import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -59,6 +60,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
+import org.apache.hadoop.yarn.client.api.impl.NMClientImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
@@ -66,6 +68,9 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeId;
+
+import org.apache.hadoop.yarn.util.Records;
+
 
 /**
  * <code>Byzantine</code> handles Byzantine Fault tolerance. It does this by 
@@ -99,11 +104,12 @@ public class Byzantine<T extends ContainerRequest> {
     private Map<String, String> env = System.getenv();
 
     private Boolean isDuplicateRequest = false;
+    private Boolean isDuplicateStart = false;
 
     // Here are the functions from AMRMClientAsync which we need to have
     // Byzantine implementations of
     public void addContainerRequestByz(AMRMClientImpl amClient, T req){
-        LOG.info("***addContainerRequestByz***");
+        System.out.println("***addContainerRequestByz***");
 
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
@@ -115,9 +121,52 @@ public class Byzantine<T extends ContainerRequest> {
         isDuplicateRequest = false;
     }
 
+
+    public void startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
+        
+        
+        System.out.println("***startContainerByz***");
+
+
+        //here we need to duplicate this start message for all the containers
+       
+
+        List<Container> dups = getDups(container.getId());
+        
+        for( Container c : dups ){
+
+            //dont want to relaunch ourselves
+            if(c.getId().getId() == container.getId().getId()){
+                continue;
+            }
+
+            //printLaunchContext(containerLaunchContext);
+
+            
+            //create a new container launch context for the duplicate
+            ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
+
+            ctx.setTokens(containerLaunchContext.getTokens());
+            ctx.setLocalResources(containerLaunchContext.getLocalResources());
+            ctx.setServiceData(containerLaunchContext.getServiceData());
+            ctx.setEnvironment(containerLaunchContext.getEnvironment());
+            ctx.setCommands(containerLaunchContext.getCommands());
+            ctx.setApplicationACLs(containerLaunchContext.getApplicationACLs());
+            
+            //then launch him
+            isDuplicateStart = true;
+            try{
+                nmClient.startContainer(c, ctx);
+            }
+            catch(Exception ex){
+            }
+            isDuplicateStart = false;
+        }
+   }
+
     // //AMRMClientAsync Callback functions
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
-        LOG.info("***onContainersCompletedByz***");
+        System.out.println("***onContainersCompletedByz***");
         List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
         List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
         for (ContainerStatus c : completed) {
@@ -154,8 +203,17 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     public AllocateResponse onContainersAllocatedByz(AllocateResponse allocateResponse){
-        LOG.info("***onContainersAllocatedByz***");
+        System.out.println("***onContainersAllocatedByz***");
         List<Container> allocated = allocateResponse.getAllocatedContainers();
+        
+      
+        System.out.println("Container Allocation Size: " + allocated.size());
+        if(allocated == null){
+            System.out.println("NULL CONTAINER SHIT");
+            return allocateResponse;
+        }
+        
+       
         // loop through every container and add it to the allocationTable
         for (Container c : allocated) {
             int i = 0;
@@ -163,25 +221,29 @@ public class Byzantine<T extends ContainerRequest> {
                      allocationTable.entrySet()) {
                 ContainerRequest key = e.getKey();
                 List<Container> dups = e.getValue();
-                System.out.println("ADDING CONTAINER: "+c.getId());
-                if (containsId(c.getId())) {System.out.println("BREAKING: "+c.getId()); break;}
+                System.out.println("ALLOCATED CONTAINER: "+c.getId());
+                if (containsId(c.getId())) {System.out.println("\talready in table: "+c.getId()); break;}
                 if (resourceLessThanEqual(key.getCapability(), c.getResource())
                     && dups.size() < NUM_REPLICAS) {
+
+                    System.out.println("ADDING CONTAINER: "+c.getId());
                     dups.add(c);
                     finishedContainers.get(i).add(Boolean.FALSE);
 
                     // all duplicates have been allocated
                     if (dups.size() == NUM_REPLICAS) {
-                        for (Container con : dups)
+                        System.out.println("Sending Allocation");
+                        for (Container con : dups.subList(dups.size()-1, dups.size()))
                             System.out.print(con.getId() + " ");
                         System.out.println();
                         return AllocateResponse.newInstance(allocateResponse.getResponseId(),
                                                             allocateResponse.getCompletedContainersStatuses(),
-                                                            dups, allocateResponse.getUpdatedNodes(),
+                                                            dups.subList(dups.size()-1, dups.size()), allocateResponse.getUpdatedNodes(),
                                                             allocateResponse.getAvailableResources(), allocateResponse.getAMCommand(),
                                                             allocateResponse.getNumClusterNodes(),
                                                             allocateResponse.getPreemptionMessage(), allocateResponse.getNMTokens());
                     }
+                    break;
                 }
                 i++;
             }
@@ -298,6 +360,39 @@ public class Byzantine<T extends ContainerRequest> {
         }
         return false;
     }
+
+
+    private void printLaunchContext(ContainerLaunchContext ctx){
+
+
+            //ctx.getTokens();
+            //ctx.getLocalResources();
+            //ctx.getServiceData();
+            //ctx.getEnvironment();
+            
+            
+            System.out.println("Command List:");
+            for(String cmd : ctx.getCommands()){
+                System.out.print(cmd + " ");
+            }
+            System.out.println("");
+
+
+            //ctx.getApplicationACLs();
+    }
+
+
+    private List<Container> getDups(ContainerId id){
+        for (Map.Entry<ContainerRequest, ArrayList<Container>> e :
+                 allocationTable.entrySet()) {
+            List<Container> dups = e.getValue();
+            for (Container c : dups)
+                if (c.getId().getId() == id.getId())
+                    return dups;
+        }
+        return null;
+    }
+
     public Boolean inByzantineMode() {
         return inByzantineMode;
     }
@@ -308,6 +403,10 @@ public class Byzantine<T extends ContainerRequest> {
     
     public Boolean isDuplicateRequest() {
         return isDuplicateRequest;
+    }
+
+    public Boolean isDuplicateStart(){
+        return isDuplicateStart;
     }
 
     public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
