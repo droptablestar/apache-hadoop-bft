@@ -70,6 +70,7 @@ import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeId;
 
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 
 
 /**
@@ -169,11 +170,17 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
             if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                // Boolean isVerified = verify(allocationTable.get(key));
-                // if (isVerified)
-                //     LOG.info("THESE CONTAINERS ARE OK!!!");
-                // else
-                //     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                 Boolean isVerified = verify(allocationTable.get(key));
+                 if (isVerified){
+                     LOG.info("THESE CONTAINERS ARE OK!!!");
+                 }
+                 else{
+                     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+
+                    //change container exit status to report byzantine failure
+                    c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
+
+                 }
                 finalCompleted.add(c);
             }
         }

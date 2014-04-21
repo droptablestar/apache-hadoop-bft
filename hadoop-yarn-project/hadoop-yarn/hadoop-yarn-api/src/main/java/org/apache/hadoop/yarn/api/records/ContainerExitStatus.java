@@ -46,4 +46,12 @@ public class ContainerExitStatus {
    * Containers preempted by the framework.
    */
   public static final int PREEMPTED = -102;
+
+  /**
+   * Container duplicates did not have a majority match. 
+   *
+    */
+  public static final int BYZANTINE_FAILURE = -103;
+
+
 }
