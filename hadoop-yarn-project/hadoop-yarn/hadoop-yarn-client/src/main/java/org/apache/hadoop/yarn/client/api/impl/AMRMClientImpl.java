@@ -246,7 +246,6 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         allocateRequest =
             AllocateRequest.newInstance(lastResponseId, progressIndicator,
               askList, releaseList, blacklistRequest);
-        LOG.info("LASTRESPONSE: "+lastResponseId+" PROGRESS: "+progressIndicator);
         // clear blacklistAdditions and blacklistRemovals before 
         // unsynchronized part
         blacklistAdditions.clear();
@@ -291,12 +290,14 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       }
     }
 
-    LOG.info("BYZANTINE MODE: "+byzantine.inByzantineMode());
     if (byzantine.inByzantineMode()) {
-        allocateResponse = byzantine.onContainersAllocatedByz(allocateResponse);
-        allocateResponse = byzantine.onContainersCompletedByz(allocateResponse);
-        LOG.info("onAllocated: "+allocateResponse.getAllocatedContainers().size()
-                 +" onCompleted: "+allocateResponse.getCompletedContainersStatuses().size());
+        if (!allocateResponse.getAllocatedContainers().isEmpty())
+            allocateResponse = byzantine.onContainersAllocatedByz(allocateResponse);
+        if (!allocateResponse.getCompletedContainersStatuses().isEmpty())
+            allocateResponse = byzantine.onContainersCompletedByz(allocateResponse);
+        if (!allocateResponse.getAllocatedContainers().isEmpty() || !allocateResponse.getCompletedContainersStatuses().isEmpty())
+            LOG.info("onAllocated: "+allocateResponse.getAllocatedContainers().size()
+                     +" onCompleted: "+allocateResponse.getCompletedContainersStatuses().size());
     }
     
     return allocateResponse;

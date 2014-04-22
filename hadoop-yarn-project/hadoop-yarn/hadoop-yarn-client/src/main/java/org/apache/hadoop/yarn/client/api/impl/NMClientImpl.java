@@ -327,6 +327,7 @@ public class NMClientImpl extends NMClient {
 
   protected synchronized void
       removeStartedContainer(StartedContainer container) {
+          LOG.info("Removing started container "+container.getContainerId());
     startedContainers.remove(container.containerId);
   }
 
