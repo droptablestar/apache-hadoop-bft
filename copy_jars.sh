@@ -10,19 +10,19 @@ if [[ $1 == 'client' ]]; then
     cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-client/target/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
 
     ## copy yarn jars from distribution to spark
-    echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
-    cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
-    echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-api-2.3.0.jar
-    cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-api-2.3.0.jar
-    echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-common-2.3.0.jar
-    cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-common-2.3.0.jar
-    echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-common-2.3.0.jar
-    cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-common-2.3.0.jar
-    echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-nodemanager-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-nodemanager-2.3.0.jar
-    cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-nodemanager-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-nodemanager-2.3.0.jar
+    # echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
+    # cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-client-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-client-2.3.0.jar
+    # echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-api-2.3.0.jar
+    # cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-api-2.3.0.jar
+    # echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-common-2.3.0.jar
+    # cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-common-2.3.0.jar
+    # echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-common-2.3.0.jar
+    # cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-common-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-common-2.3.0.jar
+    # echo cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-nodemanager-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-nodemanager-2.3.0.jar
+    # cp $HADOOP_PREFIX/share/hadoop/yarn/hadoop-yarn-server-nodemanager-3.0.0-SNAPSHOT.jar $SPARK_HOME/lib_managed/jars/hadoop-yarn-server-nodemanager-2.3.0.jar
 
-    cd $SPARK_HOME
-    SPARK_HADOOP_VERSION=2.3.0 SPARK_YARN=true sbt/sbt assembly
+    # cd $SPARK_HOME
+    # SPARK_HADOOP_VERSION=2.3.0 SPARK_YARN=true sbt/sbt assembly
 
     # yrn stop
     # wait %1

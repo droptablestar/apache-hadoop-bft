@@ -189,11 +189,13 @@ public class NMClientImpl extends NMClient {
     // in progress for a given container.
 
 
-    if (byzantine.inByzantineMode() && !byzantine.isDuplicateStart()) {
-        byzantine.startContainerByz(this, container, containerLaunchContext);
+    if (byzantine.inByzantineMode() && !byzantine.isDuplicateStart()) 
+        return byzantine.startContainerByz(this, container, containerLaunchContext);
+    if (byzantine.getDuplicateStartCount() == byzantine.getNumReplicas()) {
+        LOG.info("*******restting count*********");
+        byzantine.resetDuplicateStartCount();
     }
- 
-
+    
     StartedContainer startingContainer = createStartedContainer(container);
     synchronized (startingContainer) {
       addStartingContainer(startingContainer);

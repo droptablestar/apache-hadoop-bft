@@ -106,6 +106,7 @@ public class Byzantine<T extends ContainerRequest> {
 
     private Boolean isDuplicateRequest = false;
     private Boolean isDuplicateStart = false;
+    private int duplicateStartCount = 0;
 
     // Here are the functions from AMRMClientAsync which we need to have
     // Byzantine implementations of
@@ -123,17 +124,12 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
 
-    public void startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
-        LOG.info("***startContainerByz***");
+    public Map<String, ByteBuffer> startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
+        LOG.info("***startContainerByz::"+duplicateStartCount+"***");
 
         //here we need to duplicate this start message for all the containers
         List<Container> dups = getDups(container.getId());
         for( Container c : dups ){
-            //dont want to relaunch ourselves
-            if(c.getId().getId() == container.getId().getId()){
-                continue;
-            }
-
             //create a new container launch context for the duplicate
             ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 
@@ -145,18 +141,24 @@ public class Byzantine<T extends ContainerRequest> {
             ctx.setApplicationACLs(containerLaunchContext.getApplicationACLs());
             
             //then launch him
-            isDuplicateStart = true;
             try{
-                nmClient.startContainer(c, ctx);
+                if (duplicateStartCount++ < NUM_REPLICAS-1) {
+                    LOG.info("*** < "+duplicateStartCount+"****");
+                    nmClient.startContainer(c, ctx);
+                }
+                else {
+                    LOG.info("*** >= "+duplicateStartCount+"****");
+                    return nmClient.startContainer(c, ctx);
+                }
             }
             catch(Exception ex){
+                LOG.error("Error calling nmClient.startContainer()");
             }
-            isDuplicateStart = false;
         }
+        return null;
     }
 
-    public static String join(String r[], String d)
-    {
+    public static String join(String r[], String d) {
             if (r.length == 0) return "";
             StringBuilder sb = new StringBuilder();
             int i;
@@ -166,12 +168,8 @@ public class Byzantine<T extends ContainerRequest> {
     }
     
     private List<String> fixCommand(List<String> cmds, String containerID){
-
-
         List<String> retList = new ArrayList<String>();
-
         for (String command : cmds){
-            
             if(command.contains("org.apache.spark.executor.CoarseGrainedExecutorBackend")){
                 String splits[] = command.split(" ");
                 for (int i=0; i<splits.length; i++){
@@ -180,10 +178,8 @@ public class Byzantine<T extends ContainerRequest> {
                         splits[i+2] = containerID;
                     }
                 }
-      
                 command = join(splits, " ");
             }
-
             retList.add(command);
         }
 
@@ -206,17 +202,17 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
             if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                 Boolean isVerified = verify(allocationTable.get(key));
-                 if (isVerified){
-                     LOG.info("THESE CONTAINERS ARE OK!!!");
-                 }
-                 else{
-                     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                 // Boolean isVerified = verify(allocationTable.get(key));
+                 // if (isVerified){
+                 //     LOG.info("THESE CONTAINERS ARE OK!!!");
+                 // }
+                 // else{
+                 //     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
 
-                    //change container exit status to report byzantine failure
-                    //c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
+                 //    //change container exit status to report byzantine failure
+                 //    //c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
 
-                 }
+                 // }
                 finalCompleted.add(c);
             }
         }
@@ -408,7 +404,19 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     public Boolean isDuplicateStart(){
-        return isDuplicateStart;
+        return (duplicateStartCount == 0) ? false : true;
+    }
+
+    public int getDuplicateStartCount() {
+        return duplicateStartCount;
+    }
+
+    public void resetDuplicateStartCount() {
+        this.duplicateStartCount = 0;
+    }
+
+    public int getNumReplicas() {
+        return NUM_REPLICAS;
     }
 
     public int findContainerIndex(ArrayList<Container> dups, ContainerId cid) {
