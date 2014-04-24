@@ -266,7 +266,7 @@ public class Byzantine<T extends ContainerRequest> {
                     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
                     
                     //change container exit status to report byzantine failure
-                    c.setExitStatus(ContainerExitStatus.FAILURE);
+                    c.setExitStatus(ContainerExitStatus.INVALID);
                 }
 
                 finalCompleted.add(c);
