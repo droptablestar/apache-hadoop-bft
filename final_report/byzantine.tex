@@ -88,12 +88,20 @@ Derek Schatzlein\\
 
 \begin{abstract}
 For this project we attempted to implement Byzantine Fault Tolerance (BFT) within YARN. The goal was to provide anyone using the 
-YARN framework with the ability to have resources and tasks automatically duplicated. Our task focused specifically on the protion of 
+YARN framework with the ability to have resources and tasks automatically duplicated. Our task focused specifically on the portion of 
 BFT which deals with inconsistent output. 
 \end{abstract}
 
 
 \section{INTRODUCTION}
+Byzantine Fault Tolerance (BFT) is a system that defends against byzantine failures. A byzantine failure is where components of 
+a system fails in arbitrary ways. This can refer to crash failures, failure to receive/send, incorrect/inconsistent outputs, or 
+memory corruption. A BFT system will still run correctly in the persence of these failures. A system that provides BFT will
+increase dependability of the system, improve security and availability. The goal of our project was to implement BFT in YARN.
+
+Yet Another Resource Negotiator (YARN) is an open-source resource management framework.
+
+YARN handles crash stop failures. Our concentration is where the system doesn't fail but the output is incorrect.
 
 \begin{figure}
 \centering
@@ -101,15 +109,14 @@ BFT which deals with inconsistent output.
 \caption{YARN Architecture}
 \label{fig:arch}
 \end{figure}
-
-
 Need to introduce some stuff here... bla bla bla fuck fuck fuck...
- 
+
+
+
 \section{RELATED WORK}
 \label{sec:related}
 
-Talk about Mesos, YARN, Spark, Byzantine Fault Tolerance
-
+Talk about Mesos, Omega, Spark
 
 
 
@@ -132,36 +139,35 @@ Our Application    &    None    &    Passive    &    High/Low    &    Yes    &  
 
 Our system design began with just YARN in mind. Our hopes were to analyse the system and implement BFT entirely inside of YARN. Our hopes were to 
 keep the YARN changes just within the API such that any future frameworks which use the same API's could utilize our changes. We also hoped that if 
-our changes were within the standard API current YARN frameworks could have BFT without any changes. We later discovered that many current frameworks 
-do not use YARN's API to handle the entire process. Spark is once such example. Spark uses the standard API to request containers.
- Spark however, starts its own separate scheduler which bypasses many of the communications needed to implement BFT. 
-
+our changes were within the standard API, current YARN frameworks could have BFT without any changes. We later discovered that many current frameworks 
+do not use YARN's API to handle the entire process. Spark is once such example. Spark uses the standard API to request containers. 
+Spark however, starts its own separate scheduler which bypasses many of the communications needed to implement BFT.
 
 \subsection{YARN}
-We used the provided examples within YARN to determine how the system functions. As it turns out YARN provides two simple classes AMRMClient and 
+We used the provided examples within YARN to determine how the system functions. As it turns out, YARN provides two simple classes AMRMClient and 
 NMClient. AMRMClient handles the communication between the ApplicationMaster(AM) and the ResourceManager(RM). This is how the AM sends requests to the RM
 for new containers. It is also how the RM reports back when the new containers are allocated. The NMClient class is what handles the communication between
 the NodeManager(NM) and the AM. This is where the communication is sent to launch processes in the containers. 
 
 Our system design creates a new class Byzantine. We altered the NMClient and AMRMClient classes to each create an instance of our Byzantine class. The overall idea
-is that whenever there is a communication from AMRMClient or NMClient we intercept that communication. This means when the AM requests a container we can intercept that
-resource request and replicated it. This means if we are in byantine mode, for each intercepted resource request we duplicate it so we have 4 total requests. As this is happening
-we save off the request in a table. As the containers are allocated we intercept the communication from the RM back to the AM. We save each replica containers information
+is that whenever there is a communication from AMRMClient or NMClient, we intercept that communication. So when the AM requests a container, we can intercept that
+resource request and replicate it. This means if we are in byantine mode, for each intercepted resource request we duplicate it so we have 4 total requests. As this is happening, 
+we save off the request in a table. As the containers are allocated, we intercept the communication from the RM back to the AM. We save each replica container's information
 in the table with its respective resource request. This is done by matching the requested resources with those available in the container. 
 We do not deliver the replica communication to the AM. Once all of the 
-container replicas have been allocated we forward only one allocated container status back to the AM. We do this to hide all of the Byzantine replication from the AM. This means 
+container replicas have been allocated, we forward only one allocated container status back to the AM. We do this to hide all of the Byzantine replication from the AM. This means 
 that existing AMs can run with our version of YARN with no changes. 
 
-At this point the AM has received communication that one container has been allocated. This is the point where the AM will begin to form a ContainerLaunchContex. This encompasses the
-information needed to run a task on the container. This includes a path to the .jar file which will be run on the container. Once the launch context is built the AM uses the NMClient
-API to send communication to the launched container which tells it to start. At this point we intercept the communication and tell all of the containers replicas to perform the same
-actions. We can do this because we have a table which maps each container to all of its replicas. 
+At this point, the AM has received communication that one container has been allocated. This is the point where the AM will begin to form a ContainerLaunchContext. This encompasses the
+information needed to run a task on the container. This includes a path to the .jar file which will be run on the container. Once the launch context is built, the AM uses the NMClient
+API to send communication to the launched container which tells it to start. We now intercept the communication and tell all of the container's replicas to perform the same
+actions. We can do this because we have a table which maps each container to all of its replicas.
 
-At this point YARN will start running the provided task on the container. Upon completion the NM will report a completion status to the RM who forwards the status back to the AM via 
-the AMRMClient API. In a similar fashion we intercept these communications. Again we hide the replicas completions from the AM. Once we have seen the completion status from all the 
-replicas we must verify that they all have the same output. To do this we simply compare the output of each container. The containers output file name must be defined by a call 
-to our Byzantine class. At this point if we have a successful Byzantine run we report that back to the AM. If not we report a Byzantine failure back to the AM. In the event of 
-a Byzantine failure we assume it is up to the AM to decide what to do next. 
+At this point, YARN will start running the provided task on the container. Upon completion, the NM will report a completion status to the RM who forwards the status back to the AM via 
+the AMRMClient API. In a similar fashion, we intercept these communications. Again, we hide the replicas completions from the AM. Once we have seen the completion status from all the 
+replicas, we must verify that they all have the same output. To do this, we compare the output of each container. The containers output file name must be defined by a call 
+to our Byzantine class. If we have a successful Byzantine run, we report that back to the AM. If not, we report a Byzantine failure back to the AM. In the event of 
+a Byzantine failure, we assume that it is up to the AM to decide what to do next.
 
 
 

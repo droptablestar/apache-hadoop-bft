@@ -93,7 +93,7 @@ public class Byzantine<T extends ContainerRequest> {
     //of AbstractService
     
     //create some variables for tracking created containers    
-    private Boolean inByzantineMode = false;
+    private Boolean inByzantineMode = true;
     public int NUM_REPLICAS = 4;
     
     //need access to logger..
@@ -328,8 +328,8 @@ public class Byzantine<T extends ContainerRequest> {
         int sum = 0;
         for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
         for (i=0; i<NUM_REPLICAS; i++) System.out.print(outputs[i]);
-        LOG.info("\nSUM:"+sum+" <= "+((NUM_REPLICAS-Math.ceil(NUM_REPLICAS/2)-1)*2));
-        return sum <= ((NUM_REPLICAS-(Math.ceil(NUM_REPLICAS/2)-1))*2) ?
+        LOG.info("\nSUM:"+sum+" < "+(NUM_REPLICAS/2));
+        return sum < (NUM_REPLICAS/2) ?
             true : false;
     }
 
@@ -402,7 +402,8 @@ public class Byzantine<T extends ContainerRequest> {
             }
         }
 
-        return errorCount;
+	return errorCount < (NUM_REPLICAS/2) ?
+            0 : 1;
     }
     // HELPER METHODS
 
