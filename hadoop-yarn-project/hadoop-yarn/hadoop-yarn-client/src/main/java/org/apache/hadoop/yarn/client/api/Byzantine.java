@@ -93,7 +93,7 @@ public class Byzantine<T extends ContainerRequest> {
     //of AbstractService
     
     //create some variables for tracking created containers    
-    private Boolean inByzantineMode = true;
+    private Boolean inByzantineMode = false;
     public int NUM_REPLICAS = 4;
     
     //need access to logger..
@@ -258,17 +258,17 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
             if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                 // Boolean isVerified = verify(allocationTable.get(key));
-                 // if (isVerified){
-                 //     LOG.info("THESE CONTAINERS ARE OK!!!");
-                 // }
-                 // else{
-                 //     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                Boolean isVerified = verify(allocationTable.get(key));
+                if (isVerified){
+                    LOG.info("THESE CONTAINERS ARE OK!!!");
+                }
+                else{
+                    LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
+                    
+                    //change container exit status to report byzantine failure
+                    c.setExitStatus(ContainerExitStatus.FAILURE);
+                }
 
-                 //    //change container exit status to report byzantine failure
-                 //    //c.setExitStatus(ContainerExitStatus.FAILURE);
-
-                 // }
                 finalCompleted.add(c);
             }
         }

@@ -271,6 +271,10 @@ public class ApplicationMaster {
    */
   public static void main(String[] args) {
     boolean result = false;
+
+    long startTime = System.currentTimeMillis();
+
+
     try {
       ApplicationMaster appMaster = new ApplicationMaster();
       LOG.info("Initializing ApplicationMaster");
@@ -285,6 +289,10 @@ public class ApplicationMaster {
       LogManager.shutdown();
       ExitUtil.terminate(1, t);
     }
+
+
+    System.out.println("Runtime was: " + (System.currentTimeMillis() - startTime)+ " milliseconds");
+
     if (result) {
       LOG.info("Application Master completed successfully. exiting");
       System.exit(0);
