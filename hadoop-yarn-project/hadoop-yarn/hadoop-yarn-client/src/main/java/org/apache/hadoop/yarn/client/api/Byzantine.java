@@ -73,6 +73,11 @@ import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 
 
+import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
+import org.apache.hadoop.yarn.api.records.NodeReport;
+import org.apache.hadoop.yarn.api.records.NodeState;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+
 /**
  * <code>Byzantine</code> handles Byzantine Fault tolerance. It does this by 
  * overriding the communications with the RM and NM. 
@@ -108,18 +113,69 @@ public class Byzantine<T extends ContainerRequest> {
     private Boolean isDuplicateStart = false;
     private int duplicateStartCount = 0;
 
+
+    private static Boolean foundHosts = false;
+    private static List<String> hosts = new ArrayList<String>();
+    private static int hostCounter = 0;
+
     // Here are the functions from AMRMClientAsync which we need to have
     // Byzantine implementations of
     public void addContainerRequestByz(AMRMClientImpl amClient, T req){
         LOG.info("***addContainerRequestByz***");
 
+        //first try and get list of hosts to put duplicates on.
+        //only do this once to save time
+        if(!foundHosts){
+            try{
+                
+                //not really sure what this does.. but we need it to get acess to hosts!
+                YarnClientImpl yarnCLI = new YarnClientImpl();
+                yarnCLI.init(new YarnConfiguration());
+                yarnCLI.start();
+
+                //get node reports
+                List<NodeReport> reports = yarnCLI.getNodeReports(NodeState.RUNNING);
+        
+                //get host names from all the reports
+                for( NodeReport report : reports ){
+                    System.out.println("Found Host: " + report.getNodeId().getHost());
+                    hosts.add(report.getNodeId().getHost());
+                }
+            
+                foundHosts = true;
+            }
+            catch (Exception ex){
+                ex.printStackTrace();
+            }
+        }
+        
+
+        //log warning if we do not have enought
+        if(hosts.size() < NUM_REPLICAS){
+            LOG.warn("Not enough hosts to satisfy Byzantine Fault Tolerance... continuing anyway...");
+        }
+    
+
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
             finishedContainers.add(new ArrayList<Boolean>(1));
         }
+
+
         isDuplicateRequest = true;
         for (int i=0; i<NUM_REPLICAS; i++)
-            amClient.addContainerRequest(req);
+
+            //create new request with specific hosts and locality turned off if we can
+            if (hosts.size() >= NUM_REPLICAS){
+                String[] nodes = {hosts.get(hostCounter%NUM_REPLICAS)};
+                amClient.addContainerRequest(new ContainerRequest(req.getCapability(), nodes, (String[])req.getRacks().toArray(), req.getPriority(),false));
+                hostCounter+=1;
+            }
+            else{
+                //we could not find enough hosts just foward request 
+                amClient.addContainerRequest(req);
+            }
+
         isDuplicateRequest = false;
     }
 
@@ -210,7 +266,7 @@ public class Byzantine<T extends ContainerRequest> {
                  //     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
 
                  //    //change container exit status to report byzantine failure
-                 //    //c.setExitStatus(ContainerExitStatus.BYZANTINE_FAILURE);
+                 //    //c.setExitStatus(ContainerExitStatus.FAILURE);
 
                  // }
                 finalCompleted.add(c);
