@@ -93,7 +93,7 @@ public class Byzantine<T extends ContainerRequest> {
     //of AbstractService
     
     //create some variables for tracking created containers    
-    private Boolean inByzantineMode = true;
+    private Boolean inByzantineMode = false;
     public int NUM_REPLICAS = 4;
     
     //need access to logger..
@@ -127,7 +127,6 @@ public class Byzantine<T extends ContainerRequest> {
         //only do this once to save time
         if(!foundHosts){
             try{
-                
                 //not really sure what this does.. but we need it to get acess to hosts!
                 YarnClientImpl yarnCLI = new YarnClientImpl();
                 yarnCLI.init(new YarnConfiguration());
@@ -149,18 +148,15 @@ public class Byzantine<T extends ContainerRequest> {
             }
         }
         
-
         //log warning if we do not have enought
         if(hosts.size() < NUM_REPLICAS){
             LOG.warn("Not enough hosts to satisfy Byzantine Fault Tolerance... continuing anyway...");
         }
-    
 
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
             finishedContainers.add(new ArrayList<Boolean>(1));
         }
-
 
         isDuplicateRequest = true;
         for (int i=0; i<NUM_REPLICAS; i++)
@@ -178,7 +174,6 @@ public class Byzantine<T extends ContainerRequest> {
 
         isDuplicateRequest = false;
     }
-
 
     public Map<String, ByteBuffer> startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
         LOG.info("***startContainerByz::"+duplicateStartCount+"***");
@@ -198,14 +193,10 @@ public class Byzantine<T extends ContainerRequest> {
             
             //then launch him
             try{
-                if (duplicateStartCount++ < NUM_REPLICAS-1) {
-                    LOG.info("*** < "+duplicateStartCount+"****");
+                if (duplicateStartCount++ < NUM_REPLICAS-1) 
                     nmClient.startContainer(c, ctx);
-                }
-                else {
-                    LOG.info("*** >= "+duplicateStartCount+"****");
+                else 
                     return nmClient.startContainer(c, ctx);
-                }
             }
             catch(Exception ex){
                 LOG.error("Error calling nmClient.startContainer()");
@@ -242,8 +233,7 @@ public class Byzantine<T extends ContainerRequest> {
         return retList;
     }
 
-
-    // //AMRMClientAsync Callback functions
+    // AMRMClientAsync Callback functions
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
         LOG.info("***onContainersCompletedByz***");
         List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
@@ -320,17 +310,14 @@ public class Byzantine<T extends ContainerRequest> {
         int i=0;
         LOG.info("***VERIFY***");
         for (Container c : containers) {
-            LOG.info(c.getId()+" "+c.getId().getApplicationAttemptId().getApplicationId());
             int output = checkOutput(c, containers);
             if (output == 0) return true;
             outputs[i++] = output;
         }
         int sum = 0;
         for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
-        for (i=0; i<NUM_REPLICAS; i++) System.out.print(outputs[i]);
-        LOG.info("\nSUM:"+sum+" < "+(NUM_REPLICAS/2));
-        return sum < (NUM_REPLICAS/2) ?
-            true : false;
+
+        return sum < (NUM_REPLICAS/2) ? true : false;
     }
 
     private int checkOutput(Container c, List<Container> containers) {
@@ -375,10 +362,9 @@ public class Byzantine<T extends ContainerRequest> {
                     +"/"+con.getId()+"/"+outputLocation;
 
             if (c.getId().getId() != con.getId().getId()) {
-                LOG.info(command);
                 StringBuffer output = new StringBuffer();
-
                 Process p;
+
                 try {
                     p = Runtime.getRuntime().exec(command);
                     p.waitFor();
@@ -394,7 +380,6 @@ public class Byzantine<T extends ContainerRequest> {
                     line = "";
                     while ((line = stderrReader.readLine()) != null)
                         output.append(line);
-                    LOG.info("["+output.toString()+"]");
                     if (!output.toString().equals("")) errorCount++;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -402,8 +387,7 @@ public class Byzantine<T extends ContainerRequest> {
             }
         }
 
-	return errorCount < (NUM_REPLICAS/2) ?
-            0 : 1;
+	return errorCount < (NUM_REPLICAS/2) ? 0 : 1;
     }
     // HELPER METHODS
 
