@@ -93,7 +93,7 @@ public class Byzantine<T extends ContainerRequest> {
     //of AbstractService
     
     //create some variables for tracking created containers    
-    private Boolean inByzantineMode = false;
+    private Boolean inByzantineMode = true;
     public int NUM_REPLICAS = 4;
     
     //need access to logger..
