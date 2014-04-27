@@ -2,7 +2,7 @@
 
 if [[ $1 == 'client' ]]; then
     cd $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-client
-    ## sed -i "s/\*\*\*\*\*.*\*\*\*\*\*/\*\*\*\*\*${2}\*\*\*\*\*/g" src/main/java/org/apache/hadoop/yarn/client/api/impl/AMRMClientImpl.java
+    # ## sed -i "s/\*\*\*\*\*.*\*\*\*\*\*/\*\*\*\*\*${2}\*\*\*\*\*/g" src/main/java/org/apache/hadoop/yarn/client/api/impl/AMRMClientImpl.java
     mvn package -DskipTests
     
     ## copy client jar from source to distribution
@@ -35,6 +35,9 @@ elif [[ $1 == 'api' ]]; then
     cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-api/target/hadoop-yarn-api-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
     
 elif [[ $1 == 'dist' ]]; then
+    cd $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/
+    mvn package -DskipTests
+
     echo cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/target/hadoop-yarn-applications-distributedshell-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
     cp $HADOOP_YARN_SRC/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/target/hadoop-yarn-applications-distributedshell-3.0.0-SNAPSHOT.jar $HADOOP_PREFIX/share/hadoop/yarn
 fi
