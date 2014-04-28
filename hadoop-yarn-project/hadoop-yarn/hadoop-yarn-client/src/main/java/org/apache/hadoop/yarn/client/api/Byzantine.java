@@ -164,7 +164,21 @@ public class Byzantine<T extends ContainerRequest> {
             //create new request with specific hosts and locality turned off if we can
             if (hosts.size() >= NUM_REPLICAS){
                 String[] nodes = {hosts.get(hostCounter%NUM_REPLICAS)};
-                amClient.addContainerRequest(new ContainerRequest(req.getCapability(), nodes, (String[])req.getRacks().toArray(), req.getPriority(),false));
+
+                LOG.info("Sending Allocation to container: " + nodes[0]);
+
+                String[] racks = null; 
+                if(req.getRacks() != null){
+                    racks = req.getRacks().toArray(new String[req.getRacks().size()]);
+                }
+                
+
+                ContainerRequest newReq = new ContainerRequest(req.getCapability(), 
+                                                                  nodes, 
+                                                                  racks, 
+                                                                  req.getPriority(),
+                                                                  false);
+                amClient.addContainerRequest(newReq);
                 hostCounter+=1;
             }
             else{
@@ -176,33 +190,44 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     public Map<String, ByteBuffer> startContainerByz(NMClientImpl nmClient, Container container, ContainerLaunchContext containerLaunchContext){
-        LOG.info("***startContainerByz::"+duplicateStartCount+"***");
+       
 
-        //here we need to duplicate this start message for all the containers
-        List<Container> dups = getDups(container.getId());
-        for( Container c : dups ){
-            //create a new container launch context for the duplicate
-            ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
+        //we do not want multiple threads in here at once... this could cause bad things to happen
+        //best make the whole function synchronized
+        synchronized(this){
+        
+            LOG.info("***startContainerByz::"+duplicateStartCount+"***");
 
-            ctx.setTokens(containerLaunchContext.getTokens());
-            ctx.setLocalResources(containerLaunchContext.getLocalResources());
-            ctx.setServiceData(containerLaunchContext.getServiceData());
-            ctx.setEnvironment(containerLaunchContext.getEnvironment());
-            ctx.setCommands(fixCommand(containerLaunchContext.getCommands(),String.valueOf(c.getId().getId())));
-            ctx.setApplicationACLs(containerLaunchContext.getApplicationACLs());
-            
-            //then launch him
-            try{
-                if (duplicateStartCount++ < NUM_REPLICAS-1) 
-                    nmClient.startContainer(c, ctx);
-                else 
-                    return nmClient.startContainer(c, ctx);
+            //here we need to duplicate this start message for all the containers
+            List<Container> dups = getDups(container.getId());
+            for( Container c : dups ){
+                //create a new container launch context for the duplicate
+                ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
+
+                ctx.setTokens(containerLaunchContext.getTokens());
+                ctx.setLocalResources(containerLaunchContext.getLocalResources());
+                ctx.setServiceData(containerLaunchContext.getServiceData());
+                ctx.setEnvironment(containerLaunchContext.getEnvironment());
+                ctx.setCommands(fixCommand(containerLaunchContext.getCommands(),String.valueOf(c.getId().getId())));
+                ctx.setApplicationACLs(containerLaunchContext.getApplicationACLs());
+           
+
+                LOG.info("Launching code on container " + c.getId());
+
+                //then launch him
+                try{
+                    if (duplicateStartCount++ < NUM_REPLICAS-1) 
+                        nmClient.startContainer(c, ctx);
+                    else 
+                        return nmClient.startContainer(c, ctx);
+                }
+                catch(Exception ex){
+                   LOG.error("Error calling nmClient.startContainer()");
+                }
             }
-            catch(Exception ex){
-                LOG.error("Error calling nmClient.startContainer()");
-            }
+            return null;
+
         }
-        return null;
     }
 
     public static String join(String r[], String d) {
@@ -237,6 +262,9 @@ public class Byzantine<T extends ContainerRequest> {
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
         LOG.info("***onContainersCompletedByz***");
         List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
+        
+        LOG.info("Found " + completed.size() + " completed containers");
+        
         List<ContainerStatus> finalCompleted = new ArrayList<ContainerStatus>();
 
         for (ContainerStatus c : completed) {
@@ -248,7 +276,8 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, c);
             if (!finishedContainers.get(arrayIndex).contains(null)) {
-                containerIndex = verify(allocationTable.get(key));
+                //containerIndex = verify(allocationTable.get(key));
+                containerIndex = NUM_REPLICAS-1;
                 if (containerIndex > 0){
                     LOG.info("THESE CONTAINERS ARE OK!!!");
                     finalCompleted.add(finishedContainers.get(arrayIndex).get(containerIndex));
@@ -270,7 +299,10 @@ public class Byzantine<T extends ContainerRequest> {
     public AllocateResponse onContainersAllocatedByz(AllocateResponse allocateResponse){
         LOG.info("***onContainersAllocatedByz***");
         List<Container> allocated = allocateResponse.getAllocatedContainers();
-        
+        LOG.info("Found " + allocated.size() + " allocated containers");
+
+        List<Container> returnAlloc = new ArrayList<Container>();
+
         // loop through every container and add it to the allocationTable
         for (Container c : allocated) {
             int i = 0;
@@ -287,17 +319,17 @@ public class Byzantine<T extends ContainerRequest> {
 
                     // all duplicates have been allocated
                     if (dups.size() == NUM_REPLICAS) {
-                        return createAllocateResponse(allocateResponse.getCompletedContainersStatuses(),
-                                                      dups.subList(dups.size()-1, dups.size()),
-                                                      allocateResponse);
+                        returnAlloc.add(dups.get(dups.size()-1));
                     }
                     break;
                 }
                 i++;
             }
         }
+
+        LOG.info("***onContainersAllocatedExit***");
         return createAllocateResponse(allocateResponse.getCompletedContainersStatuses(),
-                                      new ArrayList<Container>(),
+                                      returnAlloc,
                                       allocateResponse);
     }
 
