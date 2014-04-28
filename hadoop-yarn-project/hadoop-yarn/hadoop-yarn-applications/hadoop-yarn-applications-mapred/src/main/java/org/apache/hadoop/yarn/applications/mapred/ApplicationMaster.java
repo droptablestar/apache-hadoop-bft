@@ -233,7 +233,9 @@ public class ApplicationMaster {
 
   
   protected AtomicInteger numLaunchedMappers = new AtomicInteger();
-  protected AtomicInteger numCompletedMappers = new AtomicInteger();
+
+  protected List<ContainerStatus> completedMappers = new ArrayList<ContainerStatus>();
+  //protected AtomicInteger numCompletedMappers = new AtomicInteger();
   protected List<Container> allocatedReducers = new ArrayList<Container>();
 
   
@@ -769,21 +771,21 @@ public class ApplicationMaster {
           if(numCompletedContainers.get() < numMappers){
 
             //increment num completed mappers  
-            numCompletedMappers.incrementAndGet();
-            LOG.info("Detected completion of mapper..."+ numCompletedMappers.get());
+            completedMappers.add(containerStatus);
+            LOG.info("Detected completion of mapper..."+ completedMappers.size());
 
           }
           
-          if (numCompletedMappers.get() == numMappers){
+          if (completedMappers.size() == numMappers){
             //our mappers are done...launch the reducers
             LOG.info("Mappers completed launching reducers");
            
             for(Container reducer: allocatedReducers){
-                
-                
+                   
+
                 LaunchContainerRunnable runnableLaunchContainer =
                     new LaunchContainerRunnable(reducer, containerListener, 
-                        Arrays.asList("python", System.getenv("HADOOP_PREFIX")+"/reducer.py", appAttemptID.toString(), String.valueOf(numMappers)));
+                        Arrays.asList("python", System.getenv("HADOOP_PREFIX")+"/reducer.py", appAttemptID.toString(), mapperStr()));
                 Thread launchThread = new Thread(runnableLaunchContainer);
 
                 // launch and start the container on a separate thread to keep
@@ -825,6 +827,18 @@ public class ApplicationMaster {
         done = true;
       }
     }
+
+    private String mapperStr(){
+        String mapperStr = "";
+
+        //get mapper output list
+        for(ContainerStatus cs: completedMappers){
+             mapperStr += cs.getContainerId().toString() + ",";
+        }
+
+        return mapperStr.substring(0, mapperStr.length() - 1);
+    }
+
 
     @Override
     public void onContainersAllocated(List<Container> allocatedContainers) {
@@ -869,15 +883,16 @@ public class ApplicationMaster {
             launchThread.start();
 
         }
-        else if (numCompletedMappers.get() == numMappers){
+        else if (completedMappers.size() == numMappers){
 
+            
             LOG.info("Mappers have already completed launching reducer now");
             LaunchContainerRunnable runnableLaunchContainer =
                 new LaunchContainerRunnable(allocatedContainer, containerListener, 
                         Arrays.asList("python", 
                              System.getenv("HADOOP_PREFIX")+"/reducer.py", 
                              appAttemptID.toString(), 
-                             String.valueOf(numMappers)));
+                             mapperStr()));
             Thread launchThread = new Thread(runnableLaunchContainer);
 
             // launch and start the container on a separate thread to keep

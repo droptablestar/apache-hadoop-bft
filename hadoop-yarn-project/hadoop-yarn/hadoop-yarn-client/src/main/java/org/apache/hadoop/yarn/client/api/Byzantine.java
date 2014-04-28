@@ -338,6 +338,8 @@ public class Byzantine<T extends ContainerRequest> {
         PrintWriter writer0 = null;
         PrintWriter writer1 = null;
         try {
+            
+            
             writer = new PrintWriter(
             path+containers.get(0).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(0).getId()+"/"+outputLocation);
@@ -345,7 +347,7 @@ public class Byzantine<T extends ContainerRequest> {
             writer.println("The first line");
             writer.flush();
 
-            /*
+            
             writer0 = new PrintWriter(
             path+containers.get(1).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(1).getId()+"/"+outputLocation);
@@ -353,14 +355,14 @@ public class Byzantine<T extends ContainerRequest> {
             writer0.println("The second line");
             writer0.flush();
 
-            /*
+            
             writer1 = new PrintWriter(
             path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(2).getId()+"/"+outputLocation);
 
             writer1.println("The third line");
             writer1.flush();
-            */
+            
 
         } catch(FileNotFoundException e) {
             LOG.info("File not found: "+e);

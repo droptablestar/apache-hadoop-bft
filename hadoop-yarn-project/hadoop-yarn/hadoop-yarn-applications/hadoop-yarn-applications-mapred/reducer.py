@@ -13,17 +13,17 @@ tmp = sys.argv[1].split("_")
 appId = tmp[1] + "_" + tmp[2]
 
 
-num_mappers = int(float(sys.argv[2]))
+containers = sys.argv[2].split(",")
 
 
 current_word = None
 current_count = 0
 word = None
 dict = {}
-for i in range(2,num_mappers+2):
+for container in containers:
 
-    fileStr = root+"application_"+appId+"/container_"+appId+"_01_00000"+str(i)+"/stdout"
-    #print(fileStr)
+    fileStr = root+"application_"+appId+"/"+container+"/stdout"
+    print(fileStr)
     file = open(fileStr, "r")
     # input comes from STDIN
     for line in file.readlines():
