@@ -102,8 +102,8 @@ public class Byzantine<T extends ContainerRequest> {
     public static ConcurrentMap<ContainerRequest,ArrayList<Container>> allocationTable =
         new ConcurrentHashMap<ContainerRequest, ArrayList<Container>>();
 
-    public List<ArrayList<Boolean>> finishedContainers =
-        new ArrayList<ArrayList<Boolean>>();
+    public List<ArrayList<ContainerStatus>> finishedContainers =
+        new ArrayList<ArrayList<ContainerStatus>>();
 
     private String outputLocation = "stdout";
 
@@ -137,7 +137,7 @@ public class Byzantine<T extends ContainerRequest> {
         
                 //get host names from all the reports
                 for( NodeReport report : reports ){
-                    System.out.println("Found Host: " + report.getNodeId().getHost());
+                    //System.out.println("Found Host: " + report.getNodeId().getHost());
                     hosts.add(report.getNodeId().getHost());
                 }
             
@@ -155,7 +155,7 @@ public class Byzantine<T extends ContainerRequest> {
 
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
-            finishedContainers.add(new ArrayList<Boolean>(1));
+            finishedContainers.add(new ArrayList<ContainerStatus>(1));
         }
 
         isDuplicateRequest = true;
@@ -246,20 +246,20 @@ public class Byzantine<T extends ContainerRequest> {
 
             int arrayIndex = findKeyIndex((ContainerRequest)key);
             int containerIndex = findContainerIndex(dups, c.getContainerId());
-            finishedContainers.get(arrayIndex).set(containerIndex, Boolean.TRUE);
-            if (!finishedContainers.get(arrayIndex).contains(Boolean.FALSE)) {
-                Boolean isVerified = verify(allocationTable.get(key));
-                if (isVerified){
+            finishedContainers.get(arrayIndex).set(containerIndex, c);
+            if (!finishedContainers.get(arrayIndex).contains(null)) {
+                containerIndex = verify(allocationTable.get(key));
+                if (containerIndex > 0){
                     LOG.info("THESE CONTAINERS ARE OK!!!");
+                    finalCompleted.add(finishedContainers.get(arrayIndex).get(containerIndex));
                 }
                 else{
                     LOG.info("THESE CONTAINERS ARE NOTTTTTTTTTTTTT OK!!!");
                     
                     //change container exit status to report byzantine failure
                     c.setExitStatus(ContainerExitStatus.INVALID);
+                    finalCompleted.add(c);
                 }
-
-                finalCompleted.add(c);
             }
         }
         return createAllocateResponse(finalCompleted,
@@ -283,7 +283,7 @@ public class Byzantine<T extends ContainerRequest> {
                     && dups.size() < NUM_REPLICAS) {
 
                     dups.add(c);
-                    finishedContainers.get(i).add(Boolean.FALSE);
+                    finishedContainers.get(i).add(null);
 
                     // all duplicates have been allocated
                     if (dups.size() == NUM_REPLICAS) {
@@ -305,19 +305,29 @@ public class Byzantine<T extends ContainerRequest> {
         this.outputLocation = outputLocation;
     }
 
-    public Boolean verify(List<Container> containers) {
-        int[] outputs = new int[NUM_REPLICAS];
-        int i=0;
+    private int verify(List<Container> containers) {
+        //int[] outputs = new int[NUM_REPLICAS];
+        //int i=0;
         LOG.info("***VERIFY***");
-        for (Container c : containers) {
+
+        for (int j=containers.size()-1; j>=0;  j--){ 
+        
+            Container c = containers.get(j);
             int output = checkOutput(c, containers);
-            if (output == 0) return true;
-            outputs[i++] = output;
+            if (output == 0) return j;
+            //outputs[i++] = output;
         }
+        
+
+        //Byzantine failure 
+        return -1;
+        
+        /*
         int sum = 0;
         for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
 
         return sum < (NUM_REPLICAS/2) ? true : false;
+        */
     }
 
     private int checkOutput(Container c, List<Container> containers) {
@@ -335,6 +345,7 @@ public class Byzantine<T extends ContainerRequest> {
             writer.println("The first line");
             writer.flush();
 
+            /*
             writer0 = new PrintWriter(
             path+containers.get(1).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(1).getId()+"/"+outputLocation);
@@ -342,12 +353,15 @@ public class Byzantine<T extends ContainerRequest> {
             writer0.println("The second line");
             writer0.flush();
 
+            /*
             writer1 = new PrintWriter(
             path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(2).getId()+"/"+outputLocation);
 
             writer1.println("The third line");
             writer1.flush();
+            */
+
         } catch(FileNotFoundException e) {
             LOG.info("File not found: "+e);
         } finally {

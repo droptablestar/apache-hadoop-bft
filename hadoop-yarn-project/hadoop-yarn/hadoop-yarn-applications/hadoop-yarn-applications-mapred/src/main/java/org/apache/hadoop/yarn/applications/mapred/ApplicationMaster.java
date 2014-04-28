@@ -214,7 +214,9 @@ public class ApplicationMaster {
   private int numReducers = 0;
   private String mapper_file;
   private String reducer_file;
-  
+  private Boolean mapperFailed = false;
+
+
   // Memory to request for the container on which the shell command will run
   private int containerMemory = 10;
   // VirtualCores to request for the container on which the shell command will run
@@ -746,6 +748,10 @@ public class ApplicationMaster {
             // counts as completed
             numCompletedContainers.incrementAndGet();
             numFailedContainers.incrementAndGet();
+
+            //mapper failed... just bail out
+            done = true;
+
           } else {
             // container was killed by framework, possibly preempted
             // we should re-try as the container was lost for some reason
@@ -771,7 +777,7 @@ public class ApplicationMaster {
           if (numCompletedMappers.get() == numMappers){
             //our mappers are done...launch the reducers
             LOG.info("Mappers completed launching reducers");
-            
+           
             for(Container reducer: allocatedReducers){
                 
                 
