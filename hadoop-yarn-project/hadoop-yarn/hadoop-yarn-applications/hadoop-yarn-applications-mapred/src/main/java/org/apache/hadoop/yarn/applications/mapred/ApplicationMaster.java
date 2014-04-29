@@ -218,7 +218,7 @@ public class ApplicationMaster {
 
 
   // Memory to request for the container on which the shell command will run
-  private int containerMemory = 10;
+  private int containerMemory = 512;
   // VirtualCores to request for the container on which the shell command will run
   private int containerVirtualCores = 1;
   // Priority of the request
@@ -1111,16 +1111,31 @@ public class ApplicationMaster {
 
 
       // Set args for the shell command if any
-      vargs.add(shellArgs);
+      //vargs.add(shellArgs);
       // Add log redirect params
-      vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
-      vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+      String hdfs = System.getenv().get("HADOOP_PREFIX")+"/bin/hdfs";
+
+
+      
+      vargs.add("|");
+      vargs.add(hdfs);
+      vargs.add("dfs");
+      vargs.add("-put");
+      vargs.add("-f");
+      vargs.add("-");
+      vargs.add(ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout.dat");
+
+
+      vargs.add("&>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
       // Get final commmand
       StringBuilder command = new StringBuilder();
       for (CharSequence str : vargs) {
         command.append(str).append(" ");
       }
+
+
+      System.out.println("Command to run: " + command.toString());
 
       List<String> commands = new ArrayList<String>();
       commands.add(command.toString());

@@ -78,6 +78,17 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+
+import java.io.File;
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
+
+
 /**
  * <code>Byzantine</code> handles Byzantine Fault tolerance. It does this by 
  * overriding the communications with the RM and NM. 
@@ -110,7 +121,7 @@ public class Byzantine<T extends ContainerRequest> {
     public List<ArrayList<ContainerStatus>> finishedContainers =
         new ArrayList<ArrayList<ContainerStatus>>();
 
-    private String outputLocation = "stdout";
+    private String outputLocation = "stdout.dat";
 
     private Map<String, String> env = System.getenv();
 
@@ -260,8 +271,8 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, c);
             if (!finishedContainers.get(arrayIndex).contains(null)) {
-                //containerIndex = verify(allocationTable.get(key));
-                containerIndex = NUM_REPLICAS-1;
+                containerIndex = verify(allocationTable.get(key));
+                //containerIndex = NUM_REPLICAS-1;
                 if (containerIndex > 0){
                     LOG.info("THESE CONTAINERS ARE OK!!!");
                     finalCompleted.add(finishedContainers.get(arrayIndex).get(containerIndex));
@@ -390,71 +401,90 @@ public class Byzantine<T extends ContainerRequest> {
         String path = env.get("HADOOP_PREFIX")+"/logs/userlogs/";
         int errorCount = 0;
 
-        PrintWriter writer = null;
-        PrintWriter writer0 = null;
-        PrintWriter writer1 = null;
+        
+        //get access to HDFS file system
+        Configuration conf = new YarnConfiguration();
+        FileSystem fs =  null;
+        
+        FSDataOutputStream writer = null;
+        FSDataOutputStream writer0 = null;
+        FSDataOutputStream writer1 = null;
         try {
             
-            
-            writer = new PrintWriter(
-            path+containers.get(3).getId().getApplicationAttemptId().getApplicationId()
-            +"/"+containers.get(3).getId()+"/"+outputLocation);
+        
+            fs = FileSystem.get(conf);
 
-            writer.println("The first line");
-            writer.flush();
-
+            Path outFile = new Path(
+                path+containers.get(3).getId().getApplicationAttemptId().getApplicationId()
+                +"/"+containers.get(3).getId()+"/"+outputLocation);
+ 
+            writer = fs.create(outFile);
+            byte[] data = "The first line".getBytes();
+            writer.write(data,0,data.length);
             
-            writer0 = new PrintWriter(
+            /* 
+            outFile = new Path(
             path+containers.get(1).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(1).getId()+"/"+outputLocation);
 
-            writer0.println("The second line");
-            writer0.flush();
+            writer0 = fs.create(outFile);
+            data = "The second line".getBytes();
+            writer0.write(data,0,data.length);
+            
 
-            writer1 = new PrintWriter(
+            /*
+            outFile = new Path(
             path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(2).getId()+"/"+outputLocation);
 
-            writer1.println("The third line");
-            writer1.flush();
-            
+            writer1 = fs.create(outFile);
+            data = "The third line".getBytes();
+            writer1.write(data,0,data.length);
+            */
 
-        } catch(FileNotFoundException e) {
+        } catch(Exception e) {
             LOG.info("File not found: "+e);
         } finally {
             try {writer.close();writer0.close();writer1.close();} catch(Exception e) {}
         }
 
+        
+        
         for (Container con : containers) {
-            String command = "diff "
-                    +path+c.getId().getApplicationAttemptId().getApplicationId()
-                    +"/"+c.getId()+"/"+outputLocation
-                    +" "+path+con.getId().getApplicationAttemptId().getApplicationId()
-                    +"/"+con.getId()+"/"+outputLocation;
+
+            Path f1 = new Path(path+c.getId().getApplicationAttemptId().getApplicationId()
+                                +"/"+c.getId()+"/"+outputLocation);
+                    
+            Path f2 = new Path(path+con.getId().getApplicationAttemptId().getApplicationId()
+                                +"/"+con.getId()+"/"+outputLocation);
+
+            String chk1 = "1";
+            String chk2 = "2";
+
+            try{
+                chk1 = fs.getFileChecksum(f1).toString();
+                chk2 = fs.getFileChecksum(f2).toString();
+            }
+            catch(Exception ex){
+                LOG.info("Error getting checksums"+ex);
+            }
+
+            /*
+            if(chk1 != null && chk2 != null){
+                System.out.println(chk1);
+                System.out.println(chk2);
+            }
+            else{
+                System.out.println("NULL CHECKSUMS... FUUUUUUUK");
+            }
+            */
 
             if (c.getId().getId() != con.getId().getId()) {
                 StringBuffer output = new StringBuffer();
                 Process p;
 
-                try {
-                    p = Runtime.getRuntime().exec(command);
-                    p.waitFor();
-                    BufferedReader reader =
-                        new BufferedReader(new InputStreamReader(p.getInputStream()));
 
-                    String line = "";
-                    while ((line = reader.readLine())!= null) 
-                        output.append(line);
-                    
-                    BufferedReader stderrReader = new BufferedReader(
-                        new InputStreamReader(p.getErrorStream()));
-                    line = "";
-                    while ((line = stderrReader.readLine()) != null)
-                        output.append(line);
-                    if (!output.toString().equals("")) errorCount++;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                if(!chk1.equals(chk2)) errorCount++;
             }
         }
 
