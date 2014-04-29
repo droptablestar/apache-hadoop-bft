@@ -254,7 +254,9 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     // AMRMClientAsync Callback functions
-    public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
+    public synchronized AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
+        
+        
         LOG.info("***onContainersCompletedByz***");
         List<ContainerStatus> completed = allocateResponse.getCompletedContainersStatuses();
         
@@ -271,7 +273,7 @@ public class Byzantine<T extends ContainerRequest> {
             int containerIndex = findContainerIndex(dups, c.getContainerId());
             finishedContainers.get(arrayIndex).set(containerIndex, c);
             if (!finishedContainers.get(arrayIndex).contains(null)) {
-                containerIndex = verify(allocationTable.get(key));
+                containerIndex = checkOutput(allocationTable.get(key));
                 //containerIndex = NUM_REPLICAS-1;
                 if (containerIndex > 0){
                     LOG.info("THESE CONTAINERS ARE OK!!!");
@@ -383,21 +385,7 @@ public class Byzantine<T extends ContainerRequest> {
         this.outputLocation = outputLocation;
     }
 
-    private int verify(List<Container> containers) {
-        LOG.info("***VERIFY***");
-
-        for (int j=containers.size()-1; j>=0;  j--){ 
-            Container c = containers.get(j);
-            int output = checkOutput(c, containers);
-            if (output == 0) return j;
-        }
-        
-
-        //Byzantine failure 
-        return -1;
-    }
-
-    private int checkOutput(Container c, List<Container> containers) {
+    private int checkOutput(List<Container> containers) {
         String path = env.get("HADOOP_PREFIX")+"/logs/userlogs/";
         int errorCount = 0;
 
@@ -415,15 +403,15 @@ public class Byzantine<T extends ContainerRequest> {
             fs = FileSystem.get(conf);
 
             Path outFile = new Path(
-                path+containers.get(3).getId().getApplicationAttemptId().getApplicationId()
-                +"/"+containers.get(3).getId()+"/"+outputLocation);
+                path+containers.get(0).getId().getApplicationAttemptId().getApplicationId()
+                +"/"+containers.get(0).getId()+"/"+outputLocation);
  
             writer = fs.create(outFile);
             byte[] data = "The first line".getBytes();
             writer.write(data,0,data.length);
             
-            /* 
-            outFile = new Path(
+            
+            /*outFile = new Path(
             path+containers.get(1).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(1).getId()+"/"+outputLocation);
 
@@ -432,15 +420,13 @@ public class Byzantine<T extends ContainerRequest> {
             writer0.write(data,0,data.length);
             
 
-            /*
             outFile = new Path(
             path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(2).getId()+"/"+outputLocation);
 
             writer1 = fs.create(outFile);
             data = "The third line".getBytes();
-            writer1.write(data,0,data.length);
-            */
+            writer1.write(data,0,data.length);*/
 
         } catch(Exception e) {
             LOG.info("File not found: "+e);
@@ -448,47 +434,43 @@ public class Byzantine<T extends ContainerRequest> {
             try {writer.close();writer0.close();writer1.close();} catch(Exception e) {}
         }
 
+        int[] compList = new int[NUM_REPLICAS];
+        for (int j=containers.size()-1; j>=containers.size()-(NUM_REPLICAS/2);  j--){ 
+            Container c = containers.get(j);       
         
-        
-        for (Container con : containers) {
-
-            Path f1 = new Path(path+c.getId().getApplicationAttemptId().getApplicationId()
+            for (int i=j-1; i>=0; i--) {
+                Container con = containers.get(i);
+                Path f1 = new Path(path+c.getId().getApplicationAttemptId().getApplicationId()
                                 +"/"+c.getId()+"/"+outputLocation);
                     
-            Path f2 = new Path(path+con.getId().getApplicationAttemptId().getApplicationId()
+                Path f2 = new Path(path+con.getId().getApplicationAttemptId().getApplicationId()
                                 +"/"+con.getId()+"/"+outputLocation);
 
-            String chk1 = "1";
-            String chk2 = "2";
+                String chk1 = "1";
+                String chk2 = "2";
 
-            try{
-                chk1 = fs.getFileChecksum(f1).toString();
-                chk2 = fs.getFileChecksum(f2).toString();
-            }
-            catch(Exception ex){
-                LOG.info("Error getting checksums"+ex);
-            }
+                try{
+                    chk1 = fs.getFileChecksum(f1).toString();
+                    chk2 = fs.getFileChecksum(f2).toString();
+                }
+                catch(Exception ex){
+                    LOG.info("Error getting checksums"+ex);
+                }
 
-            /*
-            if(chk1 != null && chk2 != null){
-                System.out.println(chk1);
-                System.out.println(chk2);
-            }
-            else{
-                System.out.println("NULL CHECKSUMS... FUUUUUUUK");
-            }
-            */
-
-            if (c.getId().getId() != con.getId().getId()) {
-                StringBuffer output = new StringBuffer();
-                Process p;
+                if (c.getId().getId() != con.getId().getId()) {
+                    StringBuffer output = new StringBuffer();
+                    Process p;
 
 
-                if(!chk1.equals(chk2)) errorCount++;
+                    if(!chk1.equals(chk2)){
+                        compList[j]++;
+                        compList[i]++;
+                    }
+                }
             }
+            if (compList[j] < (NUM_REPLICAS/2)) return j;
         }
-
-	return errorCount < (NUM_REPLICAS/2) ? 0 : 1;
+        return -1;
     }
     // HELPER METHODS
 
