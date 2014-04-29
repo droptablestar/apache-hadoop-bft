@@ -102,6 +102,11 @@ public class Byzantine<T extends ContainerRequest> {
     public static ConcurrentMap<ContainerRequest,ArrayList<Container>> allocationTable =
         new ConcurrentHashMap<ContainerRequest, ArrayList<Container>>();
 
+
+    public static ConcurrentMap<ContainerRequest, ArrayList<String>> hostsTable = 
+        new ConcurrentHashMap<ContainerRequest, ArrayList<String>>();
+
+
     public List<ArrayList<ContainerStatus>> finishedContainers =
         new ArrayList<ArrayList<ContainerStatus>>();
 
@@ -156,16 +161,23 @@ public class Byzantine<T extends ContainerRequest> {
         if (!allocationTable.containsKey(req)) {
             allocationTable.put((ContainerRequest)req, new ArrayList<Container>(1));
             finishedContainers.add(new ArrayList<ContainerStatus>(1));
+            hostsTable.put((ContainerRequest)req, new ArrayList<String>(1));
         }
 
         isDuplicateRequest = true;
+
+        List<String> hostsTableList = hostsTable.get(req);
+
         for (int i=0; i<NUM_REPLICAS; i++)
 
-            //create new request with specific hosts and locality turned off if we can
+            //create new request with specific hosts and locality turned off
             if (hosts.size() >= NUM_REPLICAS){
                 String[] nodes = {hosts.get(hostCounter%NUM_REPLICAS)};
 
                 LOG.info("Sending Allocation to container: " + nodes[0]);
+                
+                //add host to table for this request
+                hostsTableList.add(nodes[0]);
 
                 String[] racks = null; 
                 if(req.getRacks() != null){
@@ -230,34 +242,6 @@ public class Byzantine<T extends ContainerRequest> {
         }
     }
 
-    public static String join(String r[], String d) {
-            if (r.length == 0) return "";
-            StringBuilder sb = new StringBuilder();
-            int i;
-            for(i=0; i<r.length-1;i++)
-                sb.append(r[i]+d);
-            return sb.toString()+r[i];
-    }
-    
-    private List<String> fixCommand(List<String> cmds, String containerID){
-        List<String> retList = new ArrayList<String>();
-        for (String command : cmds){
-            if(command.contains("org.apache.spark.executor.CoarseGrainedExecutorBackend")){
-                String splits[] = command.split(" ");
-                for (int i=0; i<splits.length; i++){
-                    //System.out.println(i+" : "+ splits[i]);
-                    if(splits[i].contains("org.apache.spark.executor")){
-                        splits[i+2] = containerID;
-                    }
-                }
-                command = join(splits, " ");
-            }
-            retList.add(command);
-        }
-
-        return retList;
-    }
-
     // AMRMClientAsync Callback functions
     public AllocateResponse onContainersCompletedByz(AllocateResponse allocateResponse){
         LOG.info("***onContainersCompletedByz***");
@@ -313,10 +297,17 @@ public class Byzantine<T extends ContainerRequest> {
                 if (containsId(c.getId())) break;
                 if (resourceLessThanEqual(key.getCapability(), c.getResource())
                     && dups.size() < NUM_REPLICAS) {
-
-                    dups.add(c);
-                    finishedContainers.get(i).add(null);
-
+                    
+                    //also make sure this container fits a host request
+                    //this is always true if we do not have enough hosts
+                    if(hostsMatch(c.getNodeId().getHost(), key)){
+                        dups.add(c);
+                        finishedContainers.get(i).add(null);
+                    }
+                    else{
+                        i++;
+                        continue;
+                    }
                     // all duplicates have been allocated
                     if (dups.size() == NUM_REPLICAS) {
                         returnAlloc.add(dups.get(dups.size()-1));
@@ -332,6 +323,50 @@ public class Byzantine<T extends ContainerRequest> {
                                       returnAlloc,
                                       allocateResponse);
     }
+
+    private Boolean hostsMatch(String host, ContainerRequest req){
+       
+        //if we  dont have enough hosts always return TRUE
+        if(hosts.size() < NUM_REPLICAS) return true;
+
+        //as host requests are filled remove them from the list 
+        //so we do not get duplicates running on the same node
+        if(hostsTable.get(req).contains(host)){
+            hostsTable.get(req).remove(host);
+            return true;
+        }
+        
+        return false;
+    }
+
+    private static String join(String r[], String d) {
+            if (r.length == 0) return "";
+            StringBuilder sb = new StringBuilder();
+            int i;
+            for(i=0; i<r.length-1;i++)
+                sb.append(r[i]+d);
+            return sb.toString()+r[i];
+    }
+    
+    private List<String> fixCommand(List<String> cmds, String containerID){
+        List<String> retList = new ArrayList<String>();
+        for (String command : cmds){
+            if(command.contains("org.apache.spark.executor.CoarseGrainedExecutorBackend")){
+                String splits[] = command.split(" ");
+                for (int i=0; i<splits.length; i++){
+                    //System.out.println(i+" : "+ splits[i]);
+                    if(splits[i].contains("org.apache.spark.executor")){
+                        splits[i+2] = containerID;
+                    }
+                }
+                command = join(splits, " ");
+            }
+            retList.add(command);
+        }
+
+        return retList;
+    }
+
 
     public void setOutputLocation(String outputLocation) {
         this.outputLocation = outputLocation;
