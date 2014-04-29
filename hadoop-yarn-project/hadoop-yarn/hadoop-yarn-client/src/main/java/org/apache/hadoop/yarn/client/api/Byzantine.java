@@ -373,28 +373,17 @@ public class Byzantine<T extends ContainerRequest> {
     }
 
     private int verify(List<Container> containers) {
-        //int[] outputs = new int[NUM_REPLICAS];
-        //int i=0;
         LOG.info("***VERIFY***");
 
         for (int j=containers.size()-1; j>=0;  j--){ 
-        
             Container c = containers.get(j);
             int output = checkOutput(c, containers);
             if (output == 0) return j;
-            //outputs[i++] = output;
         }
         
 
         //Byzantine failure 
         return -1;
-        
-        /*
-        int sum = 0;
-        for (i=0; i<NUM_REPLICAS; i++) sum+=outputs[i];
-
-        return sum < (NUM_REPLICAS/2) ? true : false;
-        */
     }
 
     private int checkOutput(Container c, List<Container> containers) {
@@ -408,8 +397,8 @@ public class Byzantine<T extends ContainerRequest> {
             
             
             writer = new PrintWriter(
-            path+containers.get(0).getId().getApplicationAttemptId().getApplicationId()
-            +"/"+containers.get(0).getId()+"/"+outputLocation);
+            path+containers.get(3).getId().getApplicationAttemptId().getApplicationId()
+            +"/"+containers.get(3).getId()+"/"+outputLocation);
 
             writer.println("The first line");
             writer.flush();
@@ -422,7 +411,6 @@ public class Byzantine<T extends ContainerRequest> {
             writer0.println("The second line");
             writer0.flush();
 
-            
             writer1 = new PrintWriter(
             path+containers.get(2).getId().getApplicationAttemptId().getApplicationId()
             +"/"+containers.get(2).getId()+"/"+outputLocation);
