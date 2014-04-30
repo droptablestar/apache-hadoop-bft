@@ -218,7 +218,7 @@ public class ApplicationMaster {
 
 
   // Memory to request for the container on which the shell command will run
-  private int containerMemory = 512;
+  private int containerMemory = 1024;
   // VirtualCores to request for the container on which the shell command will run
   private int containerVirtualCores = 1;
   // Priority of the request
@@ -508,7 +508,7 @@ public class ApplicationMaster {
     }
 
     containerMemory = Integer.parseInt(cliParser.getOptionValue(
-        "container_memory", "10"));
+        "container_memory", "1024"));
     containerVirtualCores = Integer.parseInt(cliParser.getOptionValue(
         "container_vcores", "1"));
 
@@ -912,6 +912,7 @@ public class ApplicationMaster {
 
     @Override
     public void onShutdownRequest() {
+      System.out.println("SHUTDOWN REQUEST");
       done = true;
     }
 
@@ -928,6 +929,8 @@ public class ApplicationMaster {
 
     @Override
     public void onError(Throwable e) {
+      
+      System.out.println("onERROR");  
       done = true;
       amRMClient.stop();
     }
@@ -1125,7 +1128,7 @@ public class ApplicationMaster {
       vargs.add("-");
       vargs.add(ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout.dat");
 
-
+      //vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
       vargs.add("&>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
       // Get final commmand

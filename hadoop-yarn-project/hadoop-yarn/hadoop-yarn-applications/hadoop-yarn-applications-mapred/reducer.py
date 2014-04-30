@@ -26,12 +26,12 @@ myDict = {}
 for container in containers:
 
     filePath = root+"application_"+appId+"/"+container+"/stdout.dat"
-    output = subprocess.check_output([hdfs_path, "dfs","-cat", filePath], stderr=None) 
-       
-    # input comes from STDIN
-    for line in output.split('\n'):
+    #output = subprocess.check_output([hdfs_path, "dfs","-cat", filePath], stderr=None) 
+    output = subprocess.Popen([hdfs_path, "dfs", "-cat", filePath], stdout=subprocess.PIPE)
 
-       # remove leading and trailing whitespace
+    for line in output.stdout:
+       
+        # remove leading and trailing whitespace
         line = line.strip()
 
         if( line == ""):
@@ -50,7 +50,3 @@ for container in containers:
 #print(sorted(myDict, key=lambda key: myDict[key]))
 print(sorted(myDict.items(), key=lambda(k,v): (k,v)))
 
-
-# do not forget to output the last word if needed!
-if current_word == word:
-    print ("%s\t%s" % (current_word, current_count))

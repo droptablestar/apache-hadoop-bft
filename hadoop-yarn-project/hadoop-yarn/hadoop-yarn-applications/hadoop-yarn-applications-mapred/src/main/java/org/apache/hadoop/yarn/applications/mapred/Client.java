@@ -163,7 +163,7 @@ public class Client {
   // Start time for client
   private final long clientStartTime = System.currentTimeMillis();
   // Timeout threshold for client. Kill app after time interval expires.
-  private long clientTimeout = 600000;
+  private long clientTimeout = 600000*2;
 
   // flag to indicate whether to keep containers across application attempts.
   private boolean keepContainers = false;
@@ -381,7 +381,7 @@ public class Client {
           + ", numContainer=" + numContainers);
     }
 
-    clientTimeout = Integer.parseInt(cliParser.getOptionValue("timeout", "600000"));
+    clientTimeout = Integer.parseInt(cliParser.getOptionValue("timeout", "1800000"));
 
     log4jPropFile = cliParser.getOptionValue("log_properties", "");
 
