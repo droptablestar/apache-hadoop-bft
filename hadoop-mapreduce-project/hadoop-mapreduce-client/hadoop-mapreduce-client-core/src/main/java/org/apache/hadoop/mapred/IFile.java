@@ -191,7 +191,7 @@ public class IFile {
       }
     }
 
-    public void append(K key, V value) throws IOException {
+    public void append(K key, V value) throws IOException {//---bft
       if (key.getClass() != keyClass)
         throw new IOException("wrong key class: "+ key.getClass()
                               +" is not "+ keyClass);

@@ -77,6 +77,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
+//import org.apache.hadoop.mapreduce.MRJobConfig;//---- IMP this was uncommented in the original code 
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
@@ -263,6 +264,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     private final AtomicBoolean accessed = new AtomicBoolean(false);
 
     DeprecatedKeyInfo(String[] newKeys, String customMessage) {
+    	//System.out.println("\n1$$$$$$$$$$$$$$$$ newKeys = "+newKeys+"$$$$$$$$$$$$$$$$\n");
       this.newKeys = newKeys;
       this.customMessage = customMessage;
     }
@@ -311,6 +313,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     private final String customMessage;
 
     DeprecationDelta(String key, String[] newKeys, String customMessage) {
+    	//System.out.println("\n2$$$$$$$$$$$$$$$$ key = "+key+" newKeys = "+newKeys+"$$$$$$$$$$$$$$$$\n");
       Preconditions.checkNotNull(key);
       Preconditions.checkNotNull(newKeys);
       Preconditions.checkArgument(newKeys.length > 0);
@@ -321,10 +324,12 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
     public DeprecationDelta(String key, String newKey, String customMessage) {
       this(key, new String[] { newKey }, customMessage);
+      //System.out.println("\n3$$$$$$$$$$$$$$$$ key = "+key+" newKey = "+newKey+"$$$$$$$$$$$$$$$$\n");
     }
 
-    public DeprecationDelta(String key, String newKey) {
+    public DeprecationDelta(String key, String newKey) {    	
       this(key, new String[] { newKey }, null);
+      //System.out.println("\n4$$$$$$$$$$$$$$$$ key = "+key+" newKey = "+newKey+"$$$$$$$$$$$$$$$$\n");
     }
 
     public String getKey() {
@@ -475,6 +480,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   @Deprecated
   public static void addDeprecation(String key, String[] newKeys,
       String customMessage) {
+	  //System.out.println("\n5$$$$$$$$$$$$$$$$ key = "+key+" newKeys = "+newKeys+"$$$$$$$$$$$$$$$$\n");
     addDeprecations(new DeprecationDelta[] {
       new DeprecationDelta(key, newKeys, customMessage)
     });
@@ -566,6 +572,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   private String[] handleDeprecation(DeprecationContext deprecations,
       String name) {
+	  //System.out.println("\n6$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     ArrayList<String > names = new ArrayList<String>();
 	if (isDeprecated(name)) {
       DeprecatedKeyInfo keyInfo = deprecations.getDeprecatedKeyMap().get(name);
@@ -801,6 +808,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   private static int MAX_SUBST = 20;
 
   private String substituteVars(String expr) {
+	  //System.out.println("\n7$$$$$$$$$$$$$$$$ expr = "+expr+"$$$$$$$$$$$$$$$$\n");
     if (expr == null) {
       return null;
     }
@@ -851,6 +859,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or null if no such property exists.
    */
   public String get(String name) {
+	  //System.out.println("\n8$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     String[] names = handleDeprecation(deprecationContext.get(), name);
     String result = null;
     for(String n : names) {
@@ -908,6 +917,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         its replacing property and null if no such property exists.
    */
   public String getRaw(String name) {
+	  //System.out.println("\n9$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     String[] names = handleDeprecation(deprecationContext.get(), name);
     String result = null;
     for(String n : names) {
@@ -925,6 +935,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @return alternative names.
    */
   private String[] getAlternativeNames(String name) {
+	  //System.out.println("\n10$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     String altNames[] = null;
     DeprecatedKeyInfo keyInfo = null;
     DeprecationContext cur = deprecationContext.get();
@@ -956,6 +967,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value property value.
    */
   public void set(String name, String value) {
+	  //System.out.println("\n11$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name, value, null);
   }
   
@@ -971,6 +983,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @throws IllegalArgumentException when the value or name is null.
    */
   public void set(String name, String value, String source) {
+	  //System.out.println("\n12$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+" source = "+source+"$$$$$$$$$$$$$$$$\n");
     Preconditions.checkArgument(
         name != null,
         "Property name must not be null");
@@ -1068,6 +1081,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         doesn't exist.                    
    */
   public String get(String name, String defaultValue) {
+	  //System.out.println("\n13$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String[] names = handleDeprecation(deprecationContext.get(), name);
     String result = null;
     for(String n : names) {
@@ -1090,13 +1104,61 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public int getInt(String name, int defaultValue) {
+	  //System.out.println("\n14$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
+  	//System.out.println("\n\n================MRJobConfig.BFT_FLAG = "+getLong("mapred.job.bft", 1));
+    int numReducersReplicas = 1; 
+    switch ((int)getLong("mapred.job.bft", 1))
+    {
+    	case 1://No BFT
+    	{
+    		numReducersReplicas=1;
+    		break;
+    	}
+    	case 2://BFT: replicate the AM(it should replicate the mappers and reducers by itself)     //deal with it as No BFT
+        {
+        	numReducersReplicas=1;
+            break;
+        }
+        case 3://BFT: replicate mappers and reducers (both r times ?), single AM
+        {
+        	numReducersReplicas=4;
+        	break;
+        }
+        case 4://BFT: replicate the AM (r3 times in WordCount.java) and replicate mappers and reducers (both r times) 
+        {
+        	numReducersReplicas=4;
+        	break;
+        }
+        default://deal with it as No BFT
+        {
+        	numReducersReplicas=1;
+        	break;
+        }    	
+    }
     String valueString = getTrimmed(name);
+    
+    
+    
     if (valueString == null)
+    {//---replicate the reducers
+    	if(name.equals("mapreduce.job.reduces"))
+    	{
+    		System.out.println("---abc---defaultValue*numReducersReplicas = "+defaultValue*numReducersReplicas);return defaultValue*numReducersReplicas;
+		}
       return defaultValue;
+    }
     String hexString = getHexDigits(valueString);
     if (hexString != null) {
+    	if(name.equals("mapreduce.job.reduces"))
+    	{
+    		System.out.println("---abc---Integer.parseInt(hexString, 16)*numReducersReplicas = "+Integer.parseInt(hexString, 16)*numReducersReplicas);return Integer.parseInt(hexString, 16)*numReducersReplicas;
+		}
       return Integer.parseInt(hexString, 16);
     }
+    if(name.equals("mapreduce.job.reduces"))
+    {
+    	System.out.println("---abc---Integer.parseInt(valueString)*numReducersReplicas = "+Integer.parseInt(valueString)*numReducersReplicas);return Integer.parseInt(valueString)*numReducersReplicas;
+	}
     return Integer.parseInt(valueString);
   }
   
@@ -1111,6 +1173,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         <code>int</code> values
    */
   public int[] getInts(String name) {
+	  //System.out.println("\n15$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     String[] strings = getTrimmedStrings(name);
     int[] ints = new int[strings.length];
     for (int i = 0; i < strings.length; i++) {
@@ -1126,6 +1189,8 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value <code>int</code> value of the property.
    */
   public void setInt(String name, int value) {
+    //System.out.println("\n\n\n\n16$$$$$$$$$$$$$$$$$ ENTERED setInt method in Configuration class in conf package in hadoop-common $$$$$$$$$$$$$$$$$\n\n\n\n\n");
+    //System.out.println("\n17 name = "+name+" value = "+value+"\n");
     set(name, Integer.toString(value));
   }
 
@@ -1143,6 +1208,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public long getLong(String name, long defaultValue) {
+	  //System.out.println("\n18$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
@@ -1168,6 +1234,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>.
    */
   public long getLongBytes(String name, long defaultValue) {
+	  //System.out.println("\n19$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
@@ -1175,6 +1242,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   }
 
   private String getHexDigits(String value) {
+	  //System.out.println("\n20$$$$$$$$$$$$$$$$ value = "+value+"$$$$$$$$$$$$$$$$\n");
     boolean negative = false;
     String str = value;
     String hexString = null;
@@ -1199,6 +1267,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value <code>long</code> value of the property.
    */
   public void setLong(String name, long value) {
+	  //System.out.println("\n21$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name, Long.toString(value));
   }
 
@@ -1215,6 +1284,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public float getFloat(String name, float defaultValue) {
+	  //System.out.println("\n22$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
@@ -1228,6 +1298,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value property value.
    */
   public void setFloat(String name, float value) {
+	  //System.out.println("\n23$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name,Float.toString(value));
   }
 
@@ -1244,6 +1315,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public double getDouble(String name, double defaultValue) {
+	  //System.out.println("\n24$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
@@ -1257,6 +1329,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value property value.
    */
   public void setDouble(String name, double value) {
+	  //System.out.println("\n25$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name,Double.toString(value));
   }
  
@@ -1271,6 +1344,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public boolean getBoolean(String name, boolean defaultValue) {
+	  //System.out.println("\n27$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = getTrimmed(name);
     if (null == valueString || valueString.isEmpty()) {
       return defaultValue;
@@ -1292,6 +1366,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value <code>boolean</code> value of the property.
    */
   public void setBoolean(String name, boolean value) {
+	  //System.out.println("\n28$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name, Boolean.toString(value));
   }
 
@@ -1301,6 +1376,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value new value
    */
   public void setBooleanIfUnset(String name, boolean value) {
+	  //System.out.println("\n29$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     setIfUnset(name, Boolean.toString(value));
   }
 
@@ -1311,6 +1387,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param value new value
    */
   public <T extends Enum<T>> void setEnum(String name, T value) {
+	  //System.out.println("\n30$$$$$$$$$$$$$$$$ name = "+name+" vlue = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name, value.toString());
   }
 
@@ -1322,6 +1399,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * provided
    */
   public <T extends Enum<T>> T getEnum(String name, T defaultValue) {
+	  //System.out.println("\n31$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     final String val = get(name);
     return null == val
       ? defaultValue
@@ -1386,6 +1464,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param unit Unit of time
    */
   public void setTimeDuration(String name, long value, TimeUnit unit) {
+	  //System.out.println("\n32$$$$$$$$$$$$$$$$ name = "+name+" value = "+value+"$$$$$$$$$$$$$$$$\n");
     set(name, value + ParsedTimeDuration.unitFor(unit).suffix());
   }
 
@@ -1400,6 +1479,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         a number
    */
   public long getTimeDuration(String name, long defaultValue, TimeUnit unit) {
+	  //System.out.println("\n33$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String vStr = get(name);
     if (null == vStr) {
       return defaultValue;
@@ -1425,6 +1505,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @return property value as a compiled Pattern, or defaultValue
    */
   public Pattern getPattern(String name, Pattern defaultValue) {
+	  //System.out.println("\n34$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valString = get(name);
     if (null == valString || valString.isEmpty()) {
       return defaultValue;
@@ -1447,6 +1528,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param pattern new value
    */
   public void setPattern(String name, Pattern pattern) {
+	  //System.out.println("\n35$$$$$$$$$$$$$$$$ name = "+name+" pattern = "+pattern+"$$$$$$$$$$$$$$$$\n");
     if (null == pattern) {
       set(name, null);
     } else {
@@ -1586,6 +1668,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
      * @return the desired integer
      */
     private static int convertToInt(String value, int defaultValue) {
+    	//System.out.println("\n36$$$$$$$$$$$$$$$$ value = "+value+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
       String trim = value.trim();
       if (trim.length() == 0) {
         return defaultValue;
@@ -1673,6 +1756,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>null</code>. 
    */
   public String[] getStrings(String name) {
+	  //System.out.println("\n37$$$$$$$$$$$$$$$$ name = "+name+"$$$$$$$$$$$$$$$$\n");
     String valueString = get(name);
     return StringUtils.getStrings(valueString);
   }
@@ -1688,6 +1772,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or default value. 
    */
   public String[] getStrings(String name, String... defaultValue) {
+	  //System.out.println("\n38$$$$$$$$$$$$$$$$ name = "+name+" defaultValue = "+defaultValue+"$$$$$$$$$$$$$$$$\n");
     String valueString = get(name);
     if (valueString == null) {
       return defaultValue;
@@ -1754,6 +1839,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @param values The values
    */
   public void setStrings(String name, String... values) {
+	  //System.out.println("\n39$$$$$$$$$$$$$$$$ name = "+name+" values = "+values+"$$$$$$$$$$$$$$$$\n");
     set(name, StringUtils.arrayToString(values));
   }
 

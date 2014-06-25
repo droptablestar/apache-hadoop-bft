@@ -196,12 +196,9 @@ abstract public class Task implements Writable, Configurable {
   public Task() {
     taskStatus = TaskStatus.createTaskStatus(isMapTask());
     taskId = new TaskAttemptID();
-    spilledRecordsCounter = 
-      counters.findCounter(TaskCounter.SPILLED_RECORDS);
-    failedShuffleCounter = 
-      counters.findCounter(TaskCounter.FAILED_SHUFFLE);
-    mergedMapOutputsCounter = 
-      counters.findCounter(TaskCounter.MERGED_MAP_OUTPUTS);
+    spilledRecordsCounter = counters.findCounter(TaskCounter.SPILLED_RECORDS);
+    failedShuffleCounter = counters.findCounter(TaskCounter.FAILED_SHUFFLE);
+    mergedMapOutputsCounter = counters.findCounter(TaskCounter.MERGED_MAP_OUTPUTS);
     gcUpdater = new GcTimeUpdater();
   }
 
@@ -558,8 +555,7 @@ abstract public class Task implements Writable, Configurable {
       if (LOG.isDebugEnabled()) {
         LOG.debug("using new api for output committer");
       }
-      outputFormat =
-        ReflectionUtils.newInstance(taskContext.getOutputFormatClass(), job);
+      outputFormat = ReflectionUtils.newInstance(taskContext.getOutputFormatClass(), job);
       committer = outputFormat.getOutputCommitter(taskContext);
     } else {
       committer = conf.getOutputCommitter();
@@ -1307,7 +1303,7 @@ abstract public class Task implements Writable, Configurable {
   @InterfaceAudience.Private
   @InterfaceStability.Unstable
   public static class CombineOutputCollector<K extends Object, V extends Object> 
-  implements OutputCollector<K, V> {
+  implements OutputCollector<K, V> {//---bft---recall OutputCollector is just an interface,here CombineOutputCollector is the implementation
     private Writer<K, V> writer;
     private Counters.Counter outCounter;
     private Progressable progressable;
@@ -1326,7 +1322,7 @@ abstract public class Task implements Writable, Configurable {
     public synchronized void collect(K key, V value)
         throws IOException {
       outCounter.increment(1);
-      writer.append(key, value);
+      writer.append(key, value);//---bft -------------- here is the acutal writing
       if ((outCounter.getValue() % progressBar) == 0) {
         progressable.progress();
       }
@@ -1643,7 +1639,7 @@ abstract public class Task implements Writable, Configurable {
       @Override
       public void write(K key, V value
                         ) throws IOException, InterruptedException {
-        output.collect(key,value);
+        output.collect(key,value);//---bft -------------recall RecordWriter is just an interface, here OutputConverter is the implementation
       }
     }
 

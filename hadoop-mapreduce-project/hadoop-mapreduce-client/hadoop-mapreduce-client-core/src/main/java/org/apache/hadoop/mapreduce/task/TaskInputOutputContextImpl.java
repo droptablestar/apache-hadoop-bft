@@ -86,6 +86,10 @@ public abstract class TaskInputOutputContextImpl<KEYIN,VALUEIN,KEYOUT,VALUEOUT>
    */
   public void write(KEYOUT key, VALUEOUT value
                     ) throws IOException, InterruptedException {
+      System.out.println("\n\n\n");
+      System.out.println("---xxx---INSIDE write method in TaskInputOutputContextImpl.java inside mapreduce.task in client-core---");
+      System.out.println("output = "+output.toString() + " key = "+key.toString() + " value = "+ value.toString());
+      System.out.println("\n\n\n");
     output.write(key, value);
   }
 

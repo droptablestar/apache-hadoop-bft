@@ -318,6 +318,7 @@ public class ReduceTask extends Task {
   @SuppressWarnings("unchecked")
   public void run(JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, InterruptedException, ClassNotFoundException {
+      System.out.println("-----------INSIDE run method in ReduceTask.java----------");
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     if (isMapOrReduce()) {
@@ -359,7 +360,7 @@ public class ReduceTask extends Task {
           job.getClass(MRConfig.SHUFFLE_CONSUMER_PLUGIN, Shuffle.class, ShuffleConsumerPlugin.class);
 					
     shuffleConsumerPlugin = ReflectionUtils.newInstance(clazz, job);
-    LOG.info("Using ShuffleConsumerPlugin: " + shuffleConsumerPlugin);
+    LOG.info("--------------------------Using ShuffleConsumerPlugin: " + shuffleConsumerPlugin);
 
     ShuffleConsumerPlugin.Context shuffleContext = 
       new ShuffleConsumerPlugin.Context(getTaskID(), job, FileSystem.getLocal(job), umbilical, 
@@ -406,6 +407,7 @@ public class ReduceTask extends Task {
                      RawComparator<INKEY> comparator,
                      Class<INKEY> keyClass,
                      Class<INVALUE> valueClass) throws IOException {
+       System.out.println("-----------INSIDE runOldReducer method in ReduceTask.java----------");
     Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer = 
       ReflectionUtils.newInstance(job.getReducerClass(), job);
     // make output collector
@@ -419,6 +421,7 @@ public class ReduceTask extends Task {
       new OutputCollector<OUTKEY,OUTVALUE>() {
         public void collect(OUTKEY key, OUTVALUE value)
           throws IOException {
+            System.out.println("-----------INSIDE runOldReducer method in ReduceTask.java---------- key = "+key+" value = "+value);
           finalOut.write(key, value);
           // indicate that progress update needs to be sent
           reporter.progress();
@@ -427,6 +430,7 @@ public class ReduceTask extends Task {
     
     // apply reduce function
     try {
+        System.out.println("-----------INSIDE runOldReducer method in ReduceTask.java----------");
       //increment processed counter only if skipping feature is enabled
       boolean incrProcCount = SkipBadRecords.getReducerMaxSkipGroups(job)>0 &&
         SkipBadRecords.getAutoIncrReducerProcCount(job);
@@ -462,6 +466,7 @@ public class ReduceTask extends Task {
   }
 
   static class OldTrackingRecordWriter<K, V> implements RecordWriter<K, V> {
+       
 
     private final RecordWriter<K, V> real;
     private final org.apache.hadoop.mapred.Counters.Counter reduceOutputCounter;
@@ -580,8 +585,8 @@ public class ReduceTask extends Task {
                      RawComparator<INKEY> comparator,
                      Class<INKEY> keyClass,
                      Class<INVALUE> valueClass
-                     ) throws IOException,InterruptedException, 
-                              ClassNotFoundException {
+                     ) throws IOException,InterruptedException, ClassNotFoundException {
+      System.out.println("-----------INSIDE runNewReducer method in ReduceTask.java----------");
     // wrap value iterator to report progress.
     final RawKeyValueIterator rawIter = rIter;
     rIter = new RawKeyValueIterator() {
@@ -605,18 +610,15 @@ public class ReduceTask extends Task {
     };
     // make a task context so we can get the classes
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
-      new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(job,
-          getTaskID(), reporter);
+            new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(job, getTaskID(), reporter);
     // make a reducer
     org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer =
-      (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>)
-        ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
+      (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>) ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
     org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = 
       new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
     job.setBoolean("mapred.skip.on", isSkipping());
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
-    org.apache.hadoop.mapreduce.Reducer.Context 
-         reducerContext = createReduceContext(reducer, job, getTaskID(),
+    org.apache.hadoop.mapreduce.Reducer.Context reducerContext = createReduceContext(reducer, job, getTaskID(),
                                                rIter, reduceInputKeyCounter, 
                                                reduceInputValueCounter, 
                                                trackedRW,

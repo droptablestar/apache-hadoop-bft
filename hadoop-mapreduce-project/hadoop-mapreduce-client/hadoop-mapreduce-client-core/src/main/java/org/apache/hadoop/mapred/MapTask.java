@@ -1,5 +1,5 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
+/** 
+* Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -14,7 +14,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
+
+
+
 
 package org.apache.hadoop.mapred;
 
@@ -73,6 +76,7 @@ import org.apache.hadoop.util.QuickSort;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
+import java.lang.*;
 
 /** A Map task. */
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
@@ -689,8 +693,50 @@ public class MapTask extends Task {
 
     @Override
     public void write(K key, V value) throws IOException, InterruptedException {
-      collector.collect(key, value,
-                        partitioner.getPartition(key, value, partitions));
+      int originalgetPartitionValue=0,newgetPartitionValue=0;
+            
+      System.out.println("\n\n================MRJobConfig.BFT_FLAG = "+conf.getInt(MRJobConfig.BFT_FLAG, 1));
+            
+      String[] splittedTaskID = getTaskID().toString().split("_");
+      String localMapID = splittedTaskID[4];
+      
+      switch (conf.getInt(MRJobConfig.BFT_FLAG, 1)) 
+      {
+      	  case 1://No BFT
+	      {
+	    	  originalgetPartitionValue=partitioner.getPartition(key, value, partitions);
+		      newgetPartitionValue = originalgetPartitionValue;
+		      break;
+	      }	      
+      	  case 2://BFT: replicate the AM(it should replicate the mappers and reducers by itself)       //deal with it as No BFT
+		  {
+			  originalgetPartitionValue=partitioner.getPartition(key, value, partitions);
+		      newgetPartitionValue = originalgetPartitionValue;			
+			  break;
+		  }	      
+      	  case 3://BFT: replicate mappers and reducers (both r times ?), single AM
+	      {    	  
+		      originalgetPartitionValue=partitioner.getPartition(key, value, partitions/4);
+		      newgetPartitionValue = (originalgetPartitionValue*4) + (Integer.parseInt(localMapID)%4);
+		      break;
+	      }
+      	  case 4://BFT: replicate the AM (r3 times in WordCount.java) and replicate mappers and reducers (both r times)
+	      {    	  
+		      originalgetPartitionValue=partitioner.getPartition(key, value, partitions/4);
+		      newgetPartitionValue = (originalgetPartitionValue*4) + (Integer.parseInt(localMapID)%4);
+		      break;
+	      }
+      	  default://deal with it as No BFT
+      	  {
+      		  originalgetPartitionValue=partitioner.getPartition(key, value, partitions);
+		      newgetPartitionValue = originalgetPartitionValue;
+		      break;      		  
+      	  }
+      }
+      
+      System.out.println("(Key : "+key+", Value : "+value+") from Mapper Task ID : "+getTaskID()+" is going to Reducer : "+newgetPartitionValue+
+    		  " where originally it should go to Reducer : "+originalgetPartitionValue);
+      collector.collect(key, value, newgetPartitionValue);//---partitioner.getPartition(key, value, partitions);
     }
 
     @Override

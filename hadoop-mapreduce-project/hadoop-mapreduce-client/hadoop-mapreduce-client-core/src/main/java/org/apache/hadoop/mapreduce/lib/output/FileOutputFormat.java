@@ -55,8 +55,7 @@ public abstract class FileOutputFormat<K, V> extends OutputFormat<K, V> {
   }
   private FileOutputCommitter committer = null;
 public static final String COMPRESS ="mapreduce.output.fileoutputformat.compress";
-public static final String COMPRESS_CODEC = 
-"mapreduce.output.fileoutputformat.compress.codec";
+public static final String COMPRESS_CODEC = "mapreduce.output.fileoutputformat.compress.codec";
 public static final String COMPRESS_TYPE = "mapreduce.output.fileoutputformat.compress.type";
 public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir";
 
@@ -81,8 +80,7 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
    *         <code>false</code> otherwise
    */
   public static boolean getCompressOutput(JobContext job) {
-    return job.getConfiguration().getBoolean(
-      FileOutputFormat.COMPRESS, false);
+    return job.getConfiguration().getBoolean(FileOutputFormat.COMPRESS, false);
   }
   
   /**
@@ -92,12 +90,9 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
    *                   compress the job outputs
    */
   public static void 
-  setOutputCompressorClass(Job job, 
-                           Class<? extends CompressionCodec> codecClass) {
+  setOutputCompressorClass(Job job, Class<? extends CompressionCodec> codecClass) {
     setCompressOutput(job, true);
-    job.getConfiguration().setClass(FileOutputFormat.COMPRESS_CODEC, 
-                                    codecClass, 
-                                    CompressionCodec.class);
+    job.getConfiguration().setClass(FileOutputFormat.COMPRESS_CODEC, codecClass, CompressionCodec.class);
   }
   
   /**
@@ -157,12 +152,12 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
    */
   public static void setOutputPath(Job job, Path outputDir) {
     try {
-      outputDir = outputDir.getFileSystem(job.getConfiguration()).makeQualified(
-          outputDir);
+      outputDir = outputDir.getFileSystem(job.getConfiguration()).makeQualified(outputDir);      
     } catch (IOException e) {
         // Throw the IOException as a RuntimeException to be compatible with MR1
         throw new RuntimeException(e);
     }
+    System.out.println("---INSIDE setOutputPath method in FileOutputFormat.java  outputDir"+outputDir);
     job.getConfiguration().set(FileOutputFormat.OUTDIR, outputDir.toString());
   }
 
@@ -259,13 +254,20 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
   public synchronized static String getUniqueFile(TaskAttemptContext context,
                                                   String name,
                                                   String extension) {
+      System.out.println("---INSIDE getUniqueFile method in FileOutputFormat.java");
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      System.out.println("\n---stackTraceElements[1] = "+stackTraceElements[1]+"\n");
+      for(int i = 0 ; i <stackTraceElements.length;i++)
+      {
+          System.out.println("\n > i = "+i+" "+stackTraceElements[i]+" <\n");
+      }
+      
     TaskID taskId = context.getTaskAttemptID().getTaskID();
     int partition = taskId.getId();
     StringBuilder result = new StringBuilder();
     result.append(name);
     result.append('-');
-    result.append(
-        TaskID.getRepresentingCharacter(taskId.getTaskType()));
+    result.append(TaskID.getRepresentingCharacter(taskId.getTaskType()));
     result.append('-');
     result.append(NUMBER_FORMAT.format(partition));
     result.append(extension);
@@ -280,11 +282,9 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
    * @throws IOException
    */
   public Path getDefaultWorkFile(TaskAttemptContext context,
-                                 String extension) throws IOException{
-    FileOutputCommitter committer = 
-      (FileOutputCommitter) getOutputCommitter(context);
-    return new Path(committer.getWorkPath(), getUniqueFile(context, 
-      getOutputName(context), extension));
+                                 String extension) throws IOException{      
+    FileOutputCommitter committer = (FileOutputCommitter) getOutputCommitter(context);
+    return new Path(committer.getWorkPath(), getUniqueFile(context,getOutputName(context), extension));
   }
 
   /**

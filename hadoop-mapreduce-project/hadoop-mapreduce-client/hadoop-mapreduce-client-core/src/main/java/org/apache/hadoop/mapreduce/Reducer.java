@@ -147,6 +147,7 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
   protected void reduce(KEYIN key, Iterable<VALUEIN> values, Context context
                         ) throws IOException, InterruptedException {
     for(VALUEIN value: values) {
+        System.out.println("---xxx---INSIDE reduce method in Reducer.java key = "+key+" value = "+value);
       context.write((KEYOUT) key, (VALUEOUT) value);
     }
   }
@@ -168,6 +169,7 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
     setup(context);
     try {
       while (context.nextKey()) {
+          System.out.println("---INSIDE run method in Reducer.java context.getCurrentKey() = "+context.getCurrentKey()+" context.getValues() "+context.getValues());
         reduce(context.getCurrentKey(), context.getValues(), context);
         // If a back up store is used, reset it
         Iterator<VALUEIN> iter = context.getValues().iterator();

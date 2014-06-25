@@ -29,7 +29,10 @@ import org.apache.hadoop.yarn.util.Apps;
 public interface MRJobConfig {
 
   // Put all of the attribute names in here so that Job and JobContext are
-  // consistent.
+  // consistent.	
+	
+  public static final String BFT_FLAG = "mapred.job.bft";//---new for bft
+  
   public static final String INPUT_FORMAT_CLASS_ATTR = "mapreduce.job.inputformat.class";
 
   public static final String MAP_CLASS_ATTR = "mapreduce.job.map.class";

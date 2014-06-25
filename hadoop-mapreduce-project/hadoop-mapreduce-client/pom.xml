@@ -198,7 +198,6 @@
   </build>
  
   <modules>
-    <module>hadoop-mapreduce-client-core</module>
     <module>hadoop-mapreduce-client-common</module>
     <module>hadoop-mapreduce-client-shuffle</module>
     <module>hadoop-mapreduce-client-app</module>
